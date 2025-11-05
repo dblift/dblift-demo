@@ -19,7 +19,7 @@ jobs:
           docker run --rm \
             -v $(pwd)/migrations:/workspace/migrations \
             -v $(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml \
-            ghcr.io/yourorg/dblift:validation-latest \
+            ghcr.io/dblift/dblift:validation-latest \
             migrations/ \
             --dialect postgresql \
             --rules-file .dblift_rules.yaml \

@@ -435,7 +435,7 @@ Prometheus/Grafana integration ready.
 ## Getting Help
 
 - **Documentation**: https://docs.dblift.io
-- **Issues**: https://github.com/yourorg/dblift/issues
+- **Issues**: https://github.com/dblift/dblift/issues
 - **Community**: https://community.dblift.io
 - **Examples**: This demo repository!
 

@@ -189,7 +189,7 @@ validate-sql:
   image: alpine:latest
   before_script:
     - apk add --no-cache curl tar
-    - curl -L -o dblift.tar.gz https://github.com/yourorg/dblift/releases/latest/download/dblift-linux-x64.tar.gz
+    - curl -L -o dblift.tar.gz https://github.com/dblift/dblift/releases/latest/download/dblift-linux-x64.tar.gz
     - tar xzf dblift.tar.gz
   script:
     - ./dblift-linux-x64/dblift validate-sql migrations/ --dialect postgresql --rules-file config/.dblift_rules.yaml
@@ -202,7 +202,7 @@ deploy-dev:
   image: alpine:latest
   before_script:
     - apk add --no-cache curl tar
-    - curl -L -o dblift.tar.gz https://github.com/yourorg/dblift/releases/latest/download/dblift-linux-x64.tar.gz
+    - curl -L -o dblift.tar.gz https://github.com/dblift/dblift/releases/latest/download/dblift-linux-x64.tar.gz
     - tar xzf dblift.tar.gz
   script:
     - ./dblift-linux-x64/dblift migrate --config config/dblift-dev.yaml
@@ -216,7 +216,7 @@ deploy-staging:
   image: alpine:latest
   before_script:
     - apk add --no-cache curl tar
-    - curl -L -o dblift.tar.gz https://github.com/yourorg/dblift/releases/latest/download/dblift-linux-x64.tar.gz
+    - curl -L -o dblift.tar.gz https://github.com/dblift/dblift/releases/latest/download/dblift-linux-x64.tar.gz
     - tar xzf dblift.tar.gz
   script:
     - ./dblift-linux-x64/dblift migrate --config config/dblift-staging.yaml
@@ -231,7 +231,7 @@ deploy-prod:
   image: alpine:latest
   before_script:
     - apk add --no-cache curl tar
-    - curl -L -o dblift.tar.gz https://github.com/yourorg/dblift/releases/latest/download/dblift-linux-x64.tar.gz
+    - curl -L -o dblift.tar.gz https://github.com/dblift/dblift/releases/latest/download/dblift-linux-x64.tar.gz
     - tar xzf dblift.tar.gz
   script:
     - ./dblift-linux-x64/dblift migrate --config config/dblift-prod.yaml

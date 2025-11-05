@@ -21,7 +21,7 @@ jobs:
       - name: Setup DBLift
         run: |
           curl -L -o dblift-linux-x64.tar.gz \
-            https://github.com/yourorg/dblift/releases/latest/download/dblift-linux-x64.tar.gz
+            https://github.com/dblift/dblift/releases/latest/download/dblift-linux-x64.tar.gz
           tar xzf dblift-linux-x64.tar.gz
           chmod +x dblift-linux-x64/dblift
 

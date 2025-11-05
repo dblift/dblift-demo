@@ -9,15 +9,15 @@
 
 **Option A: Docker (Easiest)**
 ```bash
-docker pull ghcr.io/yourorg/dblift:latest
-alias dblift='docker run --rm -v $(pwd):/workspace ghcr.io/yourorg/dblift:latest'
+docker pull ghcr.io/dblift/dblift:latest
+alias dblift='docker run --rm -v $(pwd):/workspace ghcr.io/dblift/dblift:latest'
 ```
 
 **Option B: Download Binary**
 ```bash
 # Linux
 curl -L -o dblift-linux-x64.tar.gz \
-  https://github.com/yourorg/dblift/releases/latest/download/dblift-linux-x64.tar.gz
+  https://github.com/dblift/dblift/releases/latest/download/dblift-linux-x64.tar.gz
 tar xzf dblift-linux-x64.tar.gz
 export PATH="$PATH:$(pwd)/dblift-linux-x64"
 ```
@@ -118,16 +118,16 @@ See [INSTALL.md](INSTALL.md) for detailed installation instructions.
 
 ## Getting DBLift
 
-- **Releases**: https://github.com/yourorg/dblift/releases
-- **Docker**: `ghcr.io/yourorg/dblift:latest`
-- **Documentation**: https://github.com/yourorg/dblift
-- **Issues**: https://github.com/yourorg/dblift/issues
+- **Releases**: https://github.com/dblift/dblift/releases
+- **Docker**: `ghcr.io/dblift/dblift:latest`
+- **Documentation**: https://github.com/dblift/dblift
+- **Issues**: https://github.com/dblift/dblift/issues
 
 ## Support
 
 - Documentation: https://docs.dblift.io
 - Community: https://community.dblift.io
-- Issues: https://github.com/yourorg/dblift/issues
+- Issues: https://github.com/dblift/dblift/issues
 - Email: support@dblift.io
 
 ## Contributing
@@ -135,8 +135,8 @@ See [INSTALL.md](INSTALL.md) for detailed installation instructions.
 This is a demo repository showing how to use DBLift.
 
 To contribute to DBLift itself or report issues:
-- Main repository: https://github.com/yourorg/dblift
-- Issues: https://github.com/yourorg/dblift/issues
+- Main repository: https://github.com/dblift/dblift
+- Issues: https://github.com/dblift/dblift/issues
 
 ## License
 

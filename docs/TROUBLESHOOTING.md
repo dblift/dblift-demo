@@ -42,7 +42,7 @@ echo 'export PATH="$PATH:/path/to/dblift-linux-x64"' >> ~/.bashrc
 
 3. **Use Docker instead:**
 ```bash
-docker run --rm ghcr.io/yourorg/dblift:latest --version
+docker run --rm ghcr.io/dblift/dblift:latest --version
 ```
 
 ### "Permission denied"
@@ -73,7 +73,7 @@ dblift db list-drivers
 
 # If missing, download from main repo
 curl -L -o dblift-linux-x64.tar.gz \
-  https://github.com/yourorg/dblift/releases/latest/download/dblift-linux-x64.tar.gz
+  https://github.com/dblift/dblift/releases/latest/download/dblift-linux-x64.tar.gz
 tar xzf dblift-linux-x64.tar.gz
 ```
 
@@ -410,7 +410,7 @@ Workflow fails with DBLift errors.
 - name: Download DBLift
   run: |
     curl -L -o dblift.tar.gz \
-      https://github.com/yourorg/dblift/releases/download/v1.0.0/dblift-linux-x64.tar.gz
+      https://github.com/dblift/dblift/releases/download/v1.0.0/dblift-linux-x64.tar.gz
 ```
 
 2. **Check secrets:**
@@ -531,7 +531,7 @@ logging:
 ```
 
 3. **Search issues:**
-https://github.com/yourorg/dblift/issues
+https://github.com/dblift/dblift/issues
 
 4. **Create new issue:**
 Include:
