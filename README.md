@@ -39,16 +39,16 @@ dblift migrate --config config/dblift-postgresql.yaml
 dblift info --config config/dblift-postgresql.yaml
 ```
 
-Done! ??
+Done! 🎉
 
 ## What's Included
 
-- ? **Migration Examples** - Versioned, repeatable, and undo migrations
-- ? **Validation Rules** - Custom SQL validation with business rules
-- ? **CI/CD Examples** - GitHub Actions workflows
-- ? **Multi-Database Support** - PostgreSQL, SQL Server, MySQL
-- ? **9 Demo Scenarios** - Step-by-step walkthroughs
-- ? **Configuration Examples** - Production-ready configs
+- 📦 **Migration Examples** - Versioned, repeatable, and undo migrations
+- ✅ **Validation Rules** - Custom SQL validation with business rules
+- 🔄 **CI/CD Examples** - GitHub Actions workflows
+- 🗄️ **Multi-Database Support** - PostgreSQL, SQL Server, MySQL
+- 📚 **9 Demo Scenarios** - Step-by-step walkthroughs
+- ⚙️ **Configuration Examples** - Production-ready configs
 
 ## Demo Scenarios
 
@@ -68,20 +68,20 @@ Done! ??
 
 ```
 dblift-demo/
-??? migrations/           # SQL migration examples
-?   ??? core/            # Core schema
-?   ??? features/        # Feature-specific
-?   ??? performance/     # Optimizations
-?   ??? security/        # Security enhancements
-??? config/              # Configuration files
-??? scenarios/           # Demo walkthroughs
-??? .github/workflows/   # CI/CD examples
-??? sample-data/         # Sample data scripts
-??? docs/               # Documentation
+├── migrations/           # SQL migration examples
+│   ├── core/            # Core schema
+│   ├── features/        # Feature-specific
+│   ├── performance/     # Optimizations
+│   └── security/        # Security enhancements
+├── config/              # Configuration files
+├── scenarios/           # Demo walkthroughs
+├── .github/workflows/   # CI/CD examples
+├── sample-data/         # Sample data scripts
+└── docs/               # Documentation
 
 # NOT INCLUDED:
-# ? DBLift source code (private repository)
-# ? DBLift binaries (download separately)
+# ❌ DBLift source code (private repository)
+# ❌ DBLift binaries (download separately)
 ```
 
 ## Features Demonstrated
