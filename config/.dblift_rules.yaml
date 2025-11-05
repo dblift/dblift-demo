@@ -1,0 +1,53 @@
+# DBLift Validation Rules - Demo Configuration
+
+rules:
+  # Naming conventions
+  - name: table_naming_snake_case
+    type: naming
+    target: table
+    pattern: "^[a-z][a-z0-9_]*$"
+    message: "Table names must be lowercase snake_case"
+    severity: warning
+
+  - name: column_naming_lowercase
+    type: naming
+    target: column
+    pattern: "^[a-z][a-z0-9_]*$"
+    message: "Column names must be lowercase"
+    severity: warning
+
+  # Required elements
+  - name: require_primary_key
+    type: presence
+    target: table
+    must_have_primary_key: true
+    message: "All tables must have a primary key"
+    severity: error
+
+  - name: require_audit_columns
+    type: presence
+    target: table
+    must_have_columns: ["created_at", "updated_at", "created_by"]
+    message: "Tables must have audit columns"
+    severity: error
+
+  # SQL anti-patterns
+  - name: no_select_star
+    type: pattern
+    prohibit: "SELECT *"
+    message: "Avoid SELECT * - list columns explicitly"
+    severity: info
+
+  - name: no_drop_table
+    type: pattern
+    prohibit: "DROP TABLE"
+    message: "DROP TABLE not allowed in migrations"
+    severity: error
+
+  # Performance
+  - name: fk_requires_index
+    type: relational
+    target: foreign_key
+    requires_index: true
+    message: "Foreign keys must have indexes"
+    severity: warning

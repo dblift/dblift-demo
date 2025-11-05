@@ -1,0 +1,55 @@
+# DBLift logs and outputs
+logs/
+*.log
+validation-results.*
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment variables
+.env
+.env.local
+*.local.yaml
+
+# Docker volumes
+postgres_data/
+mysql_data/
+sqlserver_data/
+pgadmin_data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+*.DS_Store
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# CRITICAL: Never commit dblift binaries or source code
+dblift-*/
+dblift
+dblift.exe
+*.tar.gz
+*.zip
+
+# Python (if any helper scripts)
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Node (if any tooling)
+node_modules/
+package-lock.json

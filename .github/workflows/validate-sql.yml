@@ -1,0 +1,26 @@
+name: SQL Validation
+
+on:
+  pull_request:
+    paths:
+      - 'migrations/**/*.sql'
+      - 'config/.dblift_rules.yaml'
+
+jobs:
+  validate:
+    name: Validate SQL Migrations
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate SQL with Docker
+        run: |
+          docker run --rm \
+            -v $(pwd)/migrations:/workspace/migrations \
+            -v $(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml \
+            ghcr.io/yourorg/dblift:validation-latest \
+            migrations/ \
+            --dialect postgresql \
+            --rules-file .dblift_rules.yaml \
+            --format github-actions

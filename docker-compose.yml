@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # PostgreSQL for demo
+  postgres:
+    image: postgres:15
+    container_name: dblift-demo-postgres
+    environment:
+      POSTGRES_DB: dblift_demo
+      POSTGRES_USER: dblift_user
+      POSTGRES_PASSWORD: dblift_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sample-data:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dblift_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # SQL Server for demo
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: dblift-demo-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "DBLift@Demo123"
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+
+  # MySQL for demo
+  mysql:
+    image: mysql:8.0
+    container_name: dblift-demo-mysql
+    environment:
+      MYSQL_DATABASE: dblift_demo
+      MYSQL_USER: dblift_user
+      MYSQL_PASSWORD: dblift_pass
+      MYSQL_ROOT_PASSWORD: root_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  # pgAdmin (optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: dblift-demo-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@dblift.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+  sqlserver_data:
+  mysql_data:
+  pgadmin_data:
