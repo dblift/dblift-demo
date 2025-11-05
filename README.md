@@ -9,8 +9,14 @@
 
 **Option A: Docker (Easiest)**
 ```bash
-docker pull ghcr.io/dblift/dblift:latest
-alias dblift='docker run --rm -v $(pwd):/workspace ghcr.io/dblift/dblift:latest'
+docker pull ghcr.io/cmodiano/dblift:latest
+alias dblift='docker run --rm -v $(pwd):/workspace ghcr.io/cmodiano/dblift:latest'
+```
+
+**Option A2: Validation Only (Lightweight for CI/CD)**
+```bash
+docker pull ghcr.io/cmodiano/dblift-validation:latest
+alias dblift='docker run --rm -v $(pwd):/workspace ghcr.io/cmodiano/dblift-validation:latest'
 ```
 
 **Option B: Download Binary**
@@ -118,10 +124,11 @@ See [INSTALL.md](INSTALL.md) for detailed installation instructions.
 
 ## Getting DBLift
 
-- **Releases**: https://github.com/dblift/dblift/releases
-- **Docker**: `ghcr.io/dblift/dblift:latest`
-- **Documentation**: https://github.com/dblift/dblift
-- **Issues**: https://github.com/dblift/dblift/issues
+- **Releases**: https://github.com/cmodiano/dblift/releases
+- **Docker**: `ghcr.io/cmodiano/dblift:latest`
+- **Docker (Validation)**: `ghcr.io/cmodiano/dblift-validation:latest`
+- **Documentation**: https://github.com/cmodiano/dblift
+- **Issues**: https://github.com/cmodiano/dblift/issues
 
 ## Support
 
