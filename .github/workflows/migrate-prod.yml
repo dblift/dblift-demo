@@ -1,0 +1,91 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'migrations/**/*.sql'
+      - 'config/dblift-postgresql.yaml'
+  workflow_dispatch:  # Allow manual triggers
+
+jobs:
+  migrate:
+    name: Run Migrations on Production Database
+    runs-on: ubuntu-latest
+    environment: 
+      name: production
+      url: https://your-app.com
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup DBLift
+        run: |
+          curl -L -o dblift-linux-x64.tar.gz \
+            https://github.com/yourorg/dblift/releases/latest/download/dblift-linux-x64.tar.gz
+          tar xzf dblift-linux-x64.tar.gz
+          chmod +x dblift-linux-x64/dblift
+
+      - name: Validate migrations (dry-run)
+        env:
+          DBLIFT_DB_URL: ${{ secrets.PROD_DB_URL }}
+          DBLIFT_DB_USERNAME: ${{ secrets.PROD_DB_USERNAME }}
+          DBLIFT_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          DBLIFT_DB_SCHEMA: public
+        run: |
+          ./dblift-linux-x64/dblift validate \
+            --config config/dblift-postgresql.yaml \
+            --log-format text,json,html \
+            --log-dir logs
+
+      - name: Create backup marker
+        run: |
+          echo "Production migration started at $(date)" > logs/production-migration.log
+          echo "Ensure database backup is complete before proceeding"
+
+      - name: Run migrations
+        env:
+          DBLIFT_DB_URL: ${{ secrets.PROD_DB_URL }}
+          DBLIFT_DB_USERNAME: ${{ secrets.PROD_DB_USERNAME }}
+          DBLIFT_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          DBLIFT_DB_SCHEMA: public
+        run: |
+          ./dblift-linux-x64/dblift migrate \
+            --config config/dblift-postgresql.yaml \
+            --log-format text,json,html \
+            --log-dir logs
+
+      - name: Upload migration logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-migration-logs
+          path: logs/
+          retention-days: 90
+
+      - name: Check for drift
+        if: success()
+        env:
+          DBLIFT_DB_URL: ${{ secrets.PROD_DB_URL }}
+          DBLIFT_DB_USERNAME: ${{ secrets.PROD_DB_USERNAME }}
+          DBLIFT_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          DBLIFT_DB_SCHEMA: public
+        run: |
+          ./dblift-linux-x64/dblift diff \
+            --config config/dblift-postgresql.yaml
+
+      - name: Notify on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Production Migration Failed',
+              body: `Production migration failed. Please review the logs immediately.\n\nWorkflow: ${context.workflow}\nRun: ${context.runNumber}`,
+              labels: ['production', 'migration', 'critical']
+            })
+

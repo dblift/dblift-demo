@@ -1,0 +1,71 @@
+name: Deploy to Development
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'migrations/**/*.sql'
+      - 'config/dblift-postgresql.yaml'
+
+jobs:
+  migrate:
+    name: Run Migrations on Dev Database
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup DBLift
+        run: |
+          # Download DBLift distribution
+          curl -L -o dblift-linux-x64.tar.gz \
+            https://github.com/yourorg/dblift/releases/latest/download/dblift-linux-x64.tar.gz
+          tar xzf dblift-linux-x64.tar.gz
+          chmod +x dblift-linux-x64/dblift
+
+      - name: Validate migrations
+        env:
+          DBLIFT_DB_URL: ${{ secrets.DEV_DB_URL }}
+          DBLIFT_DB_USERNAME: ${{ secrets.DEV_DB_USERNAME }}
+          DBLIFT_DB_PASSWORD: ${{ secrets.DEV_DB_PASSWORD }}
+          DBLIFT_DB_SCHEMA: public
+        run: |
+          ./dblift-linux-x64/dblift validate \
+            --config config/dblift-postgresql.yaml \
+            --log-format text,json,html \
+            --log-dir logs
+
+      - name: Run migrations
+        env:
+          DBLIFT_DB_URL: ${{ secrets.DEV_DB_URL }}
+          DBLIFT_DB_USERNAME: ${{ secrets.DEV_DB_USERNAME }}
+          DBLIFT_DB_PASSWORD: ${{ secrets.DEV_DB_PASSWORD }}
+          DBLIFT_DB_SCHEMA: public
+        run: |
+          ./dblift-linux-x64/dblift migrate \
+            --config config/dblift-postgresql.yaml \
+            --log-format text,json,html \
+            --log-dir logs
+
+      - name: Upload migration logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: migration-logs
+          path: logs/
+          retention-days: 30
+
+      - name: Check for drift
+        if: success()
+        env:
+          DBLIFT_DB_URL: ${{ secrets.DEV_DB_URL }}
+          DBLIFT_DB_USERNAME: ${{ secrets.DEV_DB_USERNAME }}
+          DBLIFT_DB_PASSWORD: ${{ secrets.DEV_DB_PASSWORD }}
+          DBLIFT_DB_SCHEMA: public
+        run: |
+          ./dblift-linux-x64/dblift diff \
+            --config config/dblift-postgresql.yaml
+
