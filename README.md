@@ -84,10 +84,6 @@ dblift-demo/
 ├── .github/workflows/   # CI/CD examples
 ├── sample-data/         # Sample data scripts
 └── docs/               # Documentation
-
-# NOT INCLUDED:
-# ❌ DBLift source code (private repository)
-# ❌ DBLift binaries (download separately)
 ```
 
 ## Features Demonstrated
