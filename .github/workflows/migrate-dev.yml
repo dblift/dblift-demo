@@ -52,7 +52,6 @@ jobs:
             --log-dir /workspace/logs
 
       - name: Run migrations
-        id: migrate
         run: |
           set +e  # Don't exit on error, we want to capture output
           
@@ -76,9 +75,6 @@ jobs:
           SUCCESS_COUNT=$(grep -c "Successfully applied migration" migrate_output.txt 2>/dev/null || echo "0")
           FAILED_COUNT=$(grep -c "Failed to execute" migrate_output.txt 2>/dev/null || echo "0")
           
-          echo "migrations_success=${SUCCESS_COUNT}" >> "$GITHUB_OUTPUT"
-          echo "migrations_failed=${FAILED_COUNT}" >> "$GITHUB_OUTPUT"
-          
           # Create step summary
           {
             echo "## 🚀 Migration Summary"
@@ -95,6 +91,13 @@ jobs:
               echo '```'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+          
+          # Create annotation
+          if [ "${FAILED_COUNT}" != "0" ]; then
+            echo "::error title=Migration Failed::${FAILED_COUNT} migration(s) failed"
+          else
+            echo "::notice title=Migrations Applied::Successfully applied ${SUCCESS_COUNT} migration(s)"
+          fi
           
           # Exit with original exit code
           exit $MIGRATE_EXIT
