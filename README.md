@@ -59,16 +59,19 @@ docker run --rm \
   -w /workspace \
   --network dblift-demo_default \
   ghcr.io/dblift/dblift:latest \
-  migrate --config config/dblift-postgresql.yaml
+  migrate --config config/dblift-postgresql-docker.yaml
 ```
 
 **💡 Tip:** Create an alias for convenience:
 ```bash
-alias dblift='docker run --rm -v $(pwd):/workspace -w /workspace ghcr.io/dblift/dblift:latest'
+alias dblift='docker run --rm -v $(pwd):/workspace -w /workspace --network dblift-demo_default ghcr.io/dblift/dblift:latest'
 
 # Then simply use:
-dblift migrate --config config/dblift-postgresql.yaml
+dblift migrate --config config/dblift-postgresql-docker.yaml
 ```
+
+**📝 Note:** Use `config/dblift-postgresql-docker.yaml` when running from Docker (uses container networking).
+Use `config/dblift-postgresql.yaml` when running DBLift installed locally.
 
 ### Step 4: View Migration Status
 
@@ -78,7 +81,10 @@ docker run --rm \
   -w /workspace \
   --network dblift-demo_default \
   ghcr.io/dblift/dblift:latest \
-  info --config config/dblift-postgresql.yaml
+  info --config config/dblift-postgresql-docker.yaml
+
+# Or with the alias:
+dblift info --config config/dblift-postgresql-docker.yaml
 ```
 
 Done! 🎉
