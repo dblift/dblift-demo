@@ -1,9 +1,8 @@
-# DBLift Configuration - PostgreSQL Example
-# Copy this file and update with your database credentials
-# Environment variables will override values specified here
+# DBLift Configuration - PostgreSQL with Docker
+# Use this config when running DBLift from Docker with docker-compose
 
 database:
-  url: "jdbc:postgresql://localhost:5432/dblift_demo"
+  url: "jdbc:postgresql://dblift-demo-postgres:5432/dblift_demo"
   schema: "public"
   username: "dblift_user"
   password: "dblift_pass"
@@ -33,3 +32,4 @@ logging:
 
 log_format: "text"
 log_dir: "./logs"
+
