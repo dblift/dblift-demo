@@ -38,6 +38,7 @@ if [[ -n "${SCENARIO_NAME}" ]]; then
 fi
 
 declare -A HISTORY_SNAPSHOTS=()
+LAST_LOG_PATH=""
 
 # ---------------------------------------------------------------------------
 # Helper utilities
@@ -75,6 +76,25 @@ write_log_output() {
   echo "${outfile}"
 }
 
+show_log_excerpt() {
+  local heading="$1"
+  local log_path="$2"
+  local max_lines="${3:-120}"
+
+  [[ -f "${log_path}" ]] || return 0
+
+  append_summary "### ${heading}"
+  append_summary ""
+  append_summary '```'
+  local line_count=0
+  while IFS= read -r line && (( line_count < max_lines )); do
+    append_summary "${line}"
+    line_count=$((line_count + 1))
+  done < "${log_path}"
+  append_summary '```'
+  append_summary ""
+}
+
 run_command() {
   local title="$1"
   shift
@@ -85,7 +105,9 @@ run_command() {
   status=$?
   set -e
   log_group_end
-  write_log_output "${title}" "${output}" "${status}" >/dev/null
+  local log_path
+  log_path="$(write_log_output "${title}" "${output}" "${status}")"
+  LAST_LOG_PATH="${log_path}"
   return "${status}"
 }
 
@@ -113,7 +135,9 @@ run_dblift() {
   status=$?
   set -e
   log_group_end
-  write_log_output "${title}" "${output}" "${status}" >/dev/null
+  local log_path
+  log_path="$(write_log_output "${title}" "${output}" "${status}")"
+  LAST_LOG_PATH="${log_path}"
   return "${status}"
 }
 
@@ -128,7 +152,9 @@ run_dblift_custom_db() {
   status=$?
   set -e
   log_group_end
-  write_log_output "${title}" "${output}" "${status}" >/dev/null
+  local log_path
+  log_path="$(write_log_output "${title}" "${output}" "${status}")"
+  LAST_LOG_PATH="${log_path}"
   return "${status}"
 }
 
@@ -317,10 +343,14 @@ case "${SCENARIO_ID}" in
     wait_for_db
     capture_migration_state "Schema history before running migrations" "before-migrate"
     run_dblift "Check database status (before)" info --config config/dblift-postgresql.yaml
+    BEFORE_INFO_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "📋 Database status (before migrations)" "${BEFORE_INFO_LOG}" 80
     run_dblift "Run migrations" migrate --config config/dblift-postgresql.yaml --log-format text --log-dir logs
     run_dblift "Check database status (after)" info --config config/dblift-postgresql.yaml
+    AFTER_INFO_LOG="${LAST_LOG_PATH}"
     capture_migration_state "Schema history after running migrations" "after-migrate"
     compare_history_snapshots "before-migrate" "after-migrate"
+    show_log_excerpt "📋 Database status (after migrations)" "${AFTER_INFO_LOG}" 80
     append_summary ""
     append_summary "## Outcome"
     append_summary "- ✅ Baseline migrations applied with `dblift migrate`."
@@ -329,8 +359,17 @@ case "${SCENARIO_ID}" in
     ;;
 
   "02")
-    append_summary "## Step Summary"
-    append_summary "- Demonstrating validation rules with pass/fail examples."
+    append_summary "## Overview"
+    append_summary "- **Goal**: Experience DBLift's validation engine catching real violations."
+    append_summary "- **Focus**: Run validations on good vs. intentionally bad SQL and compare summaries."
+    append_summary "- **What You’ll See**: Rich console output with counts by severity and rule category."
+    append_summary ""
+    append_summary "## Timeline"
+    append_summary "- ✅ Validate the repository’s existing migrations (expected to pass)."
+    append_summary "- ❌ Introduce an intentional “bad” migration directory and validate it (expected to fail)."
+    append_summary "- ✅ Fix the issues and re-run validation to confirm they disappear."
+    append_summary ""
+
     run_dblift "Validate existing migrations" validate-sql migrations/ \
       --dialect postgresql \
       --rules-file config/.dblift_rules.yaml \
@@ -366,6 +405,18 @@ SQL
       --dialect postgresql \
       --rules-file config/.dblift_rules.yaml \
       --format console || true
+    )
+    BAD_LOG="${LAST_LOG_PATH}"
+    if [[ -f "${BAD_LOG}" ]]; then
+      append_summary "### 🔍 Failure Output Snapshot"
+      append_summary ""
+      append_summary '```'
+      while IFS= read -r line; do
+        append_summary "${line}"
+      done < <(head -n 120 "${BAD_LOG}")
+      append_summary '```'
+      append_summary ""
+    fi
 
     GOOD_FILE="${BAD_DIR}/V9_9_9__good_example.sql"
     cat > "${GOOD_FILE}" <<'SQL'
