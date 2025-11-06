@@ -13,7 +13,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./sample-data:/docker-entrypoint-initdb.d
+      # Note: sample-data is NOT auto-loaded - run migrations first, then load manually
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dblift_user"]
       interval: 5s

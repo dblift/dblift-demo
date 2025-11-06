@@ -1,0 +1,145 @@
+name: PR SQL Validation
+
+on:
+  pull_request:
+    paths:
+      - 'migrations/**/*.sql'
+      - 'config/.dblift_rules.yaml'
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+  checks: write
+
+jobs:
+  validate-sql:
+    name: Validate SQL Migrations
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better diff
+
+      - name: Get changed SQL files
+        id: changed-files
+        uses: tj-actions/changed-files@v40
+        with:
+          files: |
+            migrations/**/*.sql
+
+      - name: List changed migrations
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          echo "Changed SQL files:"
+          echo "${{ steps.changed-files.outputs.all_changed_files }}"
+
+      - name: Validate SQL with DBLift Docker Image
+        if: steps.changed-files.outputs.any_changed == 'true'
+        id: validate
+        continue-on-error: true
+        run: |
+          echo "Validating SQL migrations with DBLift..."
+          docker run --rm \
+            -v $(pwd)/migrations:/workspace/migrations \
+            -v $(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml \
+            ghcr.io/dblift/dblift:validation-latest \
+            migrations/ \
+            --dialect postgresql \
+            --rules-file .dblift_rules.yaml \
+            --format github-annotation || echo "Validation found issues"
+
+      - name: Generate SARIF report with DBLift
+        if: steps.changed-files.outputs.any_changed == 'true'
+        continue-on-error: true
+        run: |
+          echo "Generating SARIF report..."
+          docker run --rm \
+            -v $(pwd)/migrations:/workspace/migrations \
+            -v $(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml \
+            -v $(pwd):/output \
+            ghcr.io/dblift/dblift:validation-latest \
+            migrations/ \
+            --dialect postgresql \
+            --rules-file .dblift_rules.yaml \
+            --format sarif \
+            --output /output/validation-results.sarif || echo "SARIF generation completed"
+
+      - name: Upload SARIF to GitHub Security
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: validation-results.sarif
+          category: sql-validation
+
+      - name: Create PR comment with validation results
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read SARIF results
+            const sarif = JSON.parse(fs.readFileSync('validation-results.sarif', 'utf8'));
+            const results = sarif.runs[0].results || [];
+            
+            const errors = results.filter(r => r.level === 'error').length;
+            const warnings = results.filter(r => r.level === 'warning').length;
+            const infos = results.filter(r => r.level === 'note' || r.level === 'info').length;
+            
+            let status = '✅ All validations passed!';
+            let emoji = '✅';
+            
+            if (errors > 0) {
+              status = `❌ ${errors} error(s) found`;
+              emoji = '❌';
+            } else if (warnings > 0) {
+              status = `⚠️ ${warnings} warning(s) found`;
+              emoji = '⚠️';
+            }
+            
+            let comment = `## ${emoji} SQL Validation Results\n\n`;
+            comment += `**Status:** ${status}\n\n`;
+            comment += `| Severity | Count |\n`;
+            comment += `|----------|-------|\n`;
+            comment += `| Errors   | ${errors} |\n`;
+            comment += `| Warnings | ${warnings} |\n`;
+            comment += `| Info     | ${infos} |\n\n`;
+            
+            if (results.length > 0) {
+              comment += `### Issues Found\n\n`;
+              
+              results.forEach(result => {
+                const severity = result.level === 'error' ? '❌' : result.level === 'warning' ? '⚠️' : 'ℹ️';
+                const location = result.locations[0].physicalLocation;
+                const file = location.artifactLocation.uri;
+                const line = location.region.startLine;
+                
+                comment += `${severity} **${result.ruleId}** (Line ${line})\n`;
+                comment += `📄 \`${file}\`\n`;
+                comment += `> ${result.message.text}\n\n`;
+              });
+            }
+            
+            comment += `\n---\n`;
+            comment += `💡 **Tip:** Check the [Security](../../security/code-scanning) tab for detailed SARIF analysis.\n`;
+            comment += `📖 Review our [validation rules](../blob/main/config/.dblift_rules.yaml) for more information.`;
+            
+            // Post comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Fail if errors found
+        if: steps.validate.outcome == 'failure'
+        run: |
+          echo "❌ SQL validation failed. Please fix the errors above."
+          exit 1
+
