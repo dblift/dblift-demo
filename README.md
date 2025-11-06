@@ -32,47 +32,84 @@ Try each command yourself and see real results!
 
 ## Quick Start (5 Minutes)
 
-### 1. Install DBLift
+**Prerequisites:** Docker installed
 
-**Option A: Docker (Easiest)**
+### Step 1: Clone the Demo Repository
+
 ```bash
-docker pull ghcr.io/cmodiano/dblift:latest
-alias dblift='docker run --rm -v $(pwd):/workspace ghcr.io/cmodiano/dblift:latest'
+git clone https://github.com/dblift/dblift-demo.git
+cd dblift-demo
 ```
 
-**Option A2: Validation Only (Lightweight for CI/CD)**
+### Step 2: Start the Database
+
 ```bash
-docker pull ghcr.io/cmodiano/dblift-validation:latest
-alias dblift='docker run --rm -v $(pwd):/workspace ghcr.io/cmodiano/dblift-validation:latest'
+docker-compose up -d postgres
 ```
 
-**Option B: Download Binary**
+### Step 3: Run Migrations with Docker
+
+```bash
+# Pull the DBLift Docker image
+docker pull ghcr.io/dblift/dblift:latest
+
+# Run migrations using Docker
+docker run --rm \
+  -v $(pwd):/workspace \
+  -w /workspace \
+  --network dblift-demo_default \
+  ghcr.io/dblift/dblift:latest \
+  migrate --config config/dblift-postgresql.yaml
+```
+
+**💡 Tip:** Create an alias for convenience:
+```bash
+alias dblift='docker run --rm -v $(pwd):/workspace -w /workspace ghcr.io/dblift/dblift:latest'
+
+# Then simply use:
+dblift migrate --config config/dblift-postgresql.yaml
+```
+
+### Step 4: View Migration Status
+
+```bash
+docker run --rm \
+  -v $(pwd):/workspace \
+  -w /workspace \
+  --network dblift-demo_default \
+  ghcr.io/dblift/dblift:latest \
+  info --config config/dblift-postgresql.yaml
+```
+
+Done! 🎉
+
+### Alternative: Install DBLift Locally
+
+If you prefer not to use Docker for every command:
+
+**Option A: Download Binary**
 ```bash
 # Linux
 curl -L -o dblift-linux-x64.tar.gz \
   https://github.com/dblift/dblift/releases/latest/download/dblift-linux-x64.tar.gz
 tar xzf dblift-linux-x64.tar.gz
 export PATH="$PATH:$(pwd)/dblift-linux-x64"
+
+# macOS
+curl -L -o dblift-macos-arm64.tar.gz \
+  https://github.com/dblift/dblift/releases/latest/download/dblift-macos-arm64.tar.gz
+tar xzf dblift-macos-arm64.tar.gz
+export PATH="$PATH:$(pwd)/dblift-macos-arm64"
+```
+
+**Option B: Install from Source**
+```bash
+git clone https://github.com/dblift/dblift.git
+cd dblift
+pip install -e .
 ```
 
 See [INSTALL.md](INSTALL.md) for detailed instructions.
-
-### 2. Start Database
-```bash
-docker-compose up -d postgres
-```
-
-### 3. Run Migrations
-```bash
-dblift migrate --config config/dblift-postgresql.yaml
-```
-
-### 4. View Status
-```bash
-dblift info --config config/dblift-postgresql.yaml
-```
-
-Done! 🎉
 
 ## What's Included
 
