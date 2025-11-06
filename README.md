@@ -3,6 +3,33 @@
 > **Important**: This repository demonstrates how to USE DBLift for database migrations.
 > It does NOT contain DBLift source code. See [Installation](#installation) for how to get DBLift.
 
+## 🚀 Try It Now - Interactive Demo
+
+**Want to see DBLift in action?** Choose your preferred method:
+
+### ⚡ Fastest: GitHub Codespace (Recommended)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/dblift/dblift-demo)
+
+Once the Codespace loads, run:
+```bash
+./scripts/demo.sh
+```
+
+This runs a complete demo showing:
+- ✅ SQL validation (no database needed)
+- ✅ Migration status tracking
+- ✅ Applying migrations
+- ✅ Schema drift detection
+- ✅ Migration rollback
+- ✅ Schema export
+
+### 🎮 Interactive: Manual Commands
+Follow the step-by-step guide: **[QUICKSTART.md](QUICKSTART.md)**
+
+Try each command yourself and see real results!
+
+---
+
 ## Quick Start (5 Minutes)
 
 ### 1. Install DBLift

@@ -61,6 +61,18 @@ services:
     depends_on:
       - postgres
 
+  # Demo environment (for GitHub Codespaces)
+  demo:
+    image: ubuntu:22.04
+    container_name: dblift-demo-env
+    command: sleep infinity
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   sqlserver_data:

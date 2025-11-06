@@ -1,0 +1,23 @@
+{
+  "name": "DBLift Demo",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "demo",
+  "workspaceFolder": "/workspace",
+  "postCreateCommand": "chmod +x scripts/*.sh && echo '✅ DBLift Demo ready! Run: ./scripts/demo.sh'",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-azuretools.vscode-docker",
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-pg"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  }
+}
+
