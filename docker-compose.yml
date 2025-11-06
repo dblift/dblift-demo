@@ -81,8 +81,7 @@ services:
     working_dir: /workspace
     volumes:
       - .:/workspace:cached
-    entrypoint: ["/bin/sh", "-c"]
-    command: "while true; do sleep 3600; done"
+    entrypoint: ["/bin/sh", "-c", "while true; do sleep 3600; done"]
     depends_on:
       postgres:
         condition: service_healthy
