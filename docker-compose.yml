@@ -77,12 +77,12 @@ services:
   # DBLift CLI (kept warm for faster runs)
   dblift-cli:
     image: ghcr.io/dblift/dblift:latest
-    container_name: dblift-demo-dblift-cli
+    container_name: dblift-cli
     working_dir: /workspace
     volumes:
       - .:/workspace:cached
     entrypoint: ["/bin/sh", "-c"]
-    command: "tail -f /dev/null"
+    command: "while true; do sleep 3600; done"
     depends_on:
       postgres:
         condition: service_healthy
