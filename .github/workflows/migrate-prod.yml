@@ -25,24 +25,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup DBLift
-        run: |
-          curl -L -o dblift-linux-x64.tar.gz \
-            https://github.com/dblift/dblift/releases/latest/download/dblift-linux-x64.tar.gz
-          tar xzf dblift-linux-x64.tar.gz
-          chmod +x dblift-linux-x64/dblift
-
       - name: Validate migrations (dry-run)
-        env:
-          DBLIFT_DB_URL: ${{ secrets.PROD_DB_URL }}
-          DBLIFT_DB_USERNAME: ${{ secrets.PROD_DB_USERNAME }}
-          DBLIFT_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
-          DBLIFT_DB_SCHEMA: public
         run: |
-          ./dblift-linux-x64/dblift validate \
-            --config config/dblift-postgresql.yaml \
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -e DBLIFT_DB_URL=${{ secrets.PROD_DB_URL }} \
+            -e DBLIFT_DB_USERNAME=${{ secrets.PROD_DB_USERNAME }} \
+            -e DBLIFT_DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }} \
+            -e DBLIFT_DB_SCHEMA=public \
+            ghcr.io/cmodiano/dblift:latest validate \
+            --config /workspace/config/dblift-postgresql.yaml \
             --log-format text,json,html \
-            --log-dir logs
+            --log-dir /workspace/logs
 
       - name: Create backup marker
         run: |
@@ -50,16 +44,17 @@ jobs:
           echo "Ensure database backup is complete before proceeding"
 
       - name: Run migrations
-        env:
-          DBLIFT_DB_URL: ${{ secrets.PROD_DB_URL }}
-          DBLIFT_DB_USERNAME: ${{ secrets.PROD_DB_USERNAME }}
-          DBLIFT_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
-          DBLIFT_DB_SCHEMA: public
         run: |
-          ./dblift-linux-x64/dblift migrate \
-            --config config/dblift-postgresql.yaml \
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -e DBLIFT_DB_URL=${{ secrets.PROD_DB_URL }} \
+            -e DBLIFT_DB_USERNAME=${{ secrets.PROD_DB_USERNAME }} \
+            -e DBLIFT_DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }} \
+            -e DBLIFT_DB_SCHEMA=public \
+            ghcr.io/cmodiano/dblift:latest migrate \
+            --config /workspace/config/dblift-postgresql.yaml \
             --log-format text,json,html \
-            --log-dir logs
+            --log-dir /workspace/logs
 
       - name: Upload migration logs
         uses: actions/upload-artifact@v4
@@ -71,14 +66,15 @@ jobs:
 
       - name: Check for drift
         if: success()
-        env:
-          DBLIFT_DB_URL: ${{ secrets.PROD_DB_URL }}
-          DBLIFT_DB_USERNAME: ${{ secrets.PROD_DB_USERNAME }}
-          DBLIFT_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
-          DBLIFT_DB_SCHEMA: public
         run: |
-          ./dblift-linux-x64/dblift diff \
-            --config config/dblift-postgresql.yaml
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -e DBLIFT_DB_URL=${{ secrets.PROD_DB_URL }} \
+            -e DBLIFT_DB_USERNAME=${{ secrets.PROD_DB_USERNAME }} \
+            -e DBLIFT_DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }} \
+            -e DBLIFT_DB_SCHEMA=public \
+            ghcr.io/cmodiano/dblift:latest diff \
+            --config /workspace/config/dblift-postgresql.yaml
 
       - name: Notify on failure
         if: failure()
