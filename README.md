@@ -41,34 +41,25 @@ git clone https://github.com/dblift/dblift-demo.git
 cd dblift-demo
 ```
 
-### Step 2: Start the Database
+### Step 2: Start the Database & Warm DBLift CLI
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres dblift-cli
 ```
 
-This starts the container named `dblift-demo-postgres`, which matches the hostname used in `config/dblift-postgresql-docker.yaml`.
+This starts the database container (`dblift-demo-postgres`) and keeps a DBLift CLI container running so commands execute immediately.
 
 ### Step 3: Run Migrations with Docker
 
 ```bash
-# Pull the DBLift Docker image
-docker pull ghcr.io/dblift/dblift:latest
-
-# Run migrations using Docker
-docker run --rm \
-  -v $(pwd):/workspace \
-  -w /workspace \
-  --network dblift-demo_default \
-  ghcr.io/dblift/dblift:latest \
-  migrate --config config/dblift-postgresql-docker.yaml
+docker compose exec dblift-cli dblift migrate --config config/dblift-postgresql-docker.yaml
 ```
 
 **💡 Tip:** Create an alias for convenience:
 ```bash
-alias dblift='docker run --rm -v $(pwd):/workspace -w /workspace --network dblift-demo_default ghcr.io/dblift/dblift:latest'
+alias dblift='docker compose exec dblift-cli dblift'
 
-# Then simply use:
+# Then simply use (after Step 2):
 dblift migrate --config config/dblift-postgresql-docker.yaml
 ```
 
@@ -78,14 +69,9 @@ Use `config/dblift-postgresql.yaml` when running DBLift installed locally.
 ### Step 4: View Migration Status
 
 ```bash
-docker run --rm \
-  -v $(pwd):/workspace \
-  -w /workspace \
-  --network dblift-demo_default \
-  ghcr.io/dblift/dblift:latest \
-  info --config config/dblift-postgresql-docker.yaml
+docker compose exec dblift-cli dblift info --config config/dblift-postgresql-docker.yaml
 
-# Or with the alias:
+# Or with the alias established above:
 dblift info --config config/dblift-postgresql-docker.yaml
 ```
 

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL for demo
   postgres:
@@ -72,6 +70,19 @@ services:
     working_dir: /workspace
     volumes:
       - .:/workspace
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # DBLift CLI (kept warm for faster runs)
+  dblift-cli:
+    image: ghcr.io/dblift/dblift:latest
+    container_name: dblift-demo-dblift-cli
+    working_dir: /workspace
+    volumes:
+      - .:/workspace:cached
+    entrypoint: ["/bin/sh", "-c"]
+    command: "tail -f /dev/null"
     depends_on:
       postgres:
         condition: service_healthy
