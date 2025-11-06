@@ -44,7 +44,7 @@ cd dblift-demo
 ### Step 2: Start the Database
 
 ```bash
-docker-compose up -d postgres
+docker compose up -d dblift-demo-postgres
 ```
 
 ### Step 3: Run Migrations with Docker
