@@ -37,6 +37,8 @@ if [[ -n "${SCENARIO_NAME}" ]]; then
   SCENARIO_TITLE+=" - ${SCENARIO_NAME}"
 fi
 
+declare -A HISTORY_SNAPSHOTS=()
+
 # ---------------------------------------------------------------------------
 # Helper utilities
 # ---------------------------------------------------------------------------
@@ -181,6 +183,104 @@ psql_file() {
     psql -h "${host}" -p "${port}" -U "${DB_USER}" -d "${db}" -v ON_ERROR_STOP=1 -f "/workspace/${file_path}"
 }
 
+psql_query() {
+  local title="$1"
+  local sql="$2"
+  local url="${3:-${DB_URL_DEFAULT}}"
+  local host port db
+  host="$(echo "${url}" | sed -E 's#jdbc:postgresql://([^:/]+):([0-9]+)/([^?]+).*#\1#')"
+  port="$(echo "${url}" | sed -E 's#jdbc:postgresql://([^:/]+):([0-9]+)/([^?]+).*#\2#')"
+  db="$(echo "${url}" | sed -E 's#jdbc:postgresql://([^:/]+):([0-9]+)/([^?]+).*#\3#')"
+
+  log_group_start "${title}"
+  set +e
+  local output
+  output="$(docker run --rm --network host \
+    -e PGPASSWORD="${DB_PASSWORD}" \
+    postgres:15-alpine \
+    psql -h "${host}" -p "${port}" -U "${DB_USER}" -d "${db}" \
+      -v ON_ERROR_STOP=1 -At -F '|' -c "${sql}" 2>&1)"
+  local status=$?
+  set -e
+  log_group_end
+  write_log_output "${title}" "${output}" "${status}" >/dev/null
+  printf '%s' "${output}"
+  return "${status}"
+}
+
+capture_migration_state() {
+  local heading="$1"
+  local snapshot_id="${2:-}"
+  local url="${3:-${DB_URL_DEFAULT}}"
+
+  append_summary ""
+  append_summary "### ${heading}"
+  append_summary ""
+
+  local sql="SELECT installed_rank, COALESCE(version, '-') AS version, COALESCE(NULLIF(description, ''), script) AS description, CASE WHEN success THEN 'success' ELSE 'failed' END AS status, installed_by, to_char(installed_on, 'YYYY-MM-DD HH24:MI:SS') AS installed_on FROM dblift_schema_history ORDER BY installed_rank;"
+  local raw_output
+  if ! raw_output="$(psql_query "Inspect schema history (${heading})" "${sql}" "${url}")"; then
+    if echo "${raw_output}" | grep -qi "does not exist"; then
+      append_summary "_Schema history table not created yet._"
+    else
+      append_summary "_Unable to query schema history._"
+      append_summary ""
+      append_summary '```'
+      append_summary "${raw_output}"
+      append_summary '```'
+    fi
+    return 0
+  fi
+
+  if [[ -z "${raw_output}" ]]; then
+    append_summary "_No migrations recorded yet._"
+  else
+    append_summary "| Rank | Version | Description | Status | Applied By | Applied At |"
+    append_summary "|------|---------|-------------|--------|------------|------------|"
+    while IFS='|' read -r rank version description status installed_by installed_on; do
+      [[ -z "${rank}" ]] && continue
+      local status_icon="❌"
+      [[ "${status}" == "success" ]] && status_icon="✅"
+      append_summary "| ${rank} | ${version} | ${description} | ${status_icon} | ${installed_by} | ${installed_on} |"
+    done <<<"${raw_output}"
+  fi
+
+  if [[ -n "${snapshot_id}" ]]; then
+    local snapshot_file="${LOG_ROOT}/schema-history-${snapshot_id}.txt"
+    printf '%s\n' "${raw_output}" > "${snapshot_file}"
+    HISTORY_SNAPSHOTS["${snapshot_id}"]="${snapshot_file}"
+  fi
+}
+
+compare_history_snapshots() {
+  local from_id="$1"
+  local to_id="$2"
+  local from_file="${HISTORY_SNAPSHOTS["${from_id}"]:-}"
+  local to_file="${HISTORY_SNAPSHOTS["${to_id}"]:-}"
+
+  [[ -n "${to_file}" && -f "${to_file}" ]] || return 0
+
+  local new_entries
+  if [[ -n "${from_file}" && -f "${from_file}" ]]; then
+    new_entries="$(grep -F -x -v -f "${from_file}" "${to_file}" || true)"
+  else
+    new_entries="$(cat "${to_file}")"
+  fi
+
+  [[ -z "${new_entries}" ]] && return 0
+
+  append_summary ""
+  append_summary "#### ✅ Newly applied migrations"
+  append_summary ""
+  append_summary "| Version | Description | Applied By | Applied At |"
+  append_summary "|---------|-------------|------------|------------|"
+  while IFS='|' read -r rank version description status installed_by installed_on; do
+    [[ -z "${rank}" ]] && continue
+    [[ "${status}" != "success" ]] && continue
+    append_summary "| ${version} | ${description} | ${installed_by} | ${installed_on} |"
+  done <<<"${new_entries}"
+}
+
 on_error() {
   local exit_code="${1:-1}"
   local line_no="${2:-}"
@@ -206,9 +306,12 @@ case "${SCENARIO_ID}" in
     append_summary "## Step Summary"
     append_summary "- Initializing database for basic migration demo."
     wait_for_db
+    capture_migration_state "Schema history before running migrations" "before-migrate"
     run_dblift "Check database status (before)" info --config config/dblift-postgresql.yaml
     run_dblift "Run migrations" migrate --config config/dblift-postgresql.yaml --log-format text --log-dir logs
     run_dblift "Check database status (after)" info --config config/dblift-postgresql.yaml
+    capture_migration_state "Schema history after running migrations" "after-migrate"
+    compare_history_snapshots "before-migrate" "after-migrate"
     append_summary "- ✅ Applied baseline migrations using \`dblift migrate\`."
     append_summary "- ✅ Verified schema history before and after deployment."
     ;;
