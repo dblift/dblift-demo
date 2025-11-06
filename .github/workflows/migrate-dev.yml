@@ -131,34 +131,11 @@ jobs:
           cat drift_output.txt
           echo "::endgroup::"
           
-          # Extract key findings from drift output
+          # Extract error count for annotation
           ERROR_COUNT=$(grep -oE 'Critical differences found: [0-9]+' drift_output.txt | grep -oE '[0-9]+' || echo "0")
-          TABLE_COUNT=$(grep -c "Table '" drift_output.txt 2>/dev/null || echo "0")
-          INDEX_COUNT=$(grep -c "Index '" drift_output.txt 2>/dev/null || echo "0")
           
-          # Create step summary
-          {
-            echo "## 🔍 Schema Drift Detection"
-            echo ""
-            if [ "$DRIFT_EXIT" -eq 0 ]; then
-              echo "✅ **No drift detected** - Database schema matches migrations"
-            else
-              echo "⚠️ **Drift detected:** ${ERROR_COUNT} difference(s) found"
-              echo ""
-              if [ "$TABLE_COUNT" -gt 0 ]; then
-                echo "**Tables with differences:** ${TABLE_COUNT}"
-                echo '```'
-                grep "Table '" drift_output.txt | sed "s/.*Table '\([^']*\)'.*/\1/" | head -10
-                echo '```'
-              fi
-              if [ "$INDEX_COUNT" -gt 0 ]; then
-                echo ""
-                echo "**Indexes with differences:** ${INDEX_COUNT}"
-              fi
-              echo ""
-              echo "📄 See detailed drift report in workflow logs above"
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+          # Use Python script to parse and create detailed summary
+          python3 .github/scripts/parse_drift.py drift_output.txt >> "$GITHUB_STEP_SUMMARY"
           
           # Create annotations for visibility
           if [ "$ERROR_COUNT" != "0" ]; then
