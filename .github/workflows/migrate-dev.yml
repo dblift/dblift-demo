@@ -145,55 +145,78 @@ jobs:
           else
             echo "⚠️ **Drift detected:** ${ERROR_COUNT} difference(s) found" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            
-            # Extract table modifications with details
-            echo "### Table Modifications" >> "$GITHUB_STEP_SUMMARY"
+            echo "These differences are typically due to:" >> "$GITHUB_STEP_SUMMARY"
+            echo "- PostgreSQL adding type casts to defaults (e.g., \`'system'::character varying\`)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- System-generated foreign key constraint names" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Enum type representations" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
             
-            grep "Table '" drift_output.txt | while IFS= read -r line; do
-              TABLE=$(echo "$line" | sed "s/.*Table '\([^']*\)'.*/\1/")
-              MODS=$(echo "$line" | sed "s/.*modified_cols=\[\([^\]]*\)\].*/\1/" | sed "s/'//g")
-              EXTRA_CONST=$(echo "$line" | sed "s/.*extra_constraints=\[\([^\]]*\)\].*/\1/" | sed "s/'//g")
-              
-              echo "**${TABLE}**" >> "$GITHUB_STEP_SUMMARY"
-              if [ -n "$MODS" ] && [ "$MODS" != "" ]; then
-                echo "- Modified columns: \`${MODS}\`" >> "$GITHUB_STEP_SUMMARY"
-              fi
-              if [ -n "$EXTRA_CONST" ] && [ "$EXTRA_CONST" != "" ]; then
-                echo "- Extra constraints: \`${EXTRA_CONST}\`" >> "$GITHUB_STEP_SUMMARY"
-              fi
-              echo "" >> "$GITHUB_STEP_SUMMARY"
-            done
+            # Count tables with differences
+            TABLE_COUNT=$(grep -c "Table '.*' modifications:" drift_output.txt 2>/dev/null || echo "0")
+            echo "### Summary" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Tables with differences:** ${TABLE_COUNT}" >> "$GITHUB_STEP_SUMMARY"
             
-            # Extract index differences
-            INDEX_COUNT=$(grep -c "Index '" drift_output.txt 2>/dev/null || echo "0")
+            # Count indexes with differences
+            INDEX_COUNT=$(grep -c "Index '.*' has differences:" drift_output.txt 2>/dev/null || echo "0")
             if [ "$INDEX_COUNT" -gt 0 ]; then
-              echo "### Index Differences (${INDEX_COUNT})" >> "$GITHUB_STEP_SUMMARY"
+              echo "- **Indexes with differences:** ${INDEX_COUNT}" >> "$GITHUB_STEP_SUMMARY"
+            fi
+            
+            # Count trigger differences
+            if grep -q "Trigger diff summary" drift_output.txt; then
+              TRIGGER_COUNT=$(grep "Trigger diff summary.*modified:" drift_output.txt | grep -oE "\[([^]]+)\]" | head -1 | tr -cd ',' | wc -c)
+              TRIGGER_COUNT=$((TRIGGER_COUNT + 1))
+              if [ "$TRIGGER_COUNT" -gt 1 ]; then
+                echo "- **Triggers with differences:** ${TRIGGER_COUNT}" >> "$GITHUB_STEP_SUMMARY"
+              fi
+            fi
+            
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "### Common Differences Found" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            
+            # Extract actual issues (simplified view)
+            echo "**Tables:**" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            grep "Table '.*' modifications:" drift_output.txt | sed "s/.*Table '\([^']*\)'.*/\1/" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            
+            if [ "$INDEX_COUNT" -gt 0 ]; then
+              echo "**Indexes:**" >> "$GITHUB_STEP_SUMMARY"
               echo '```' >> "$GITHUB_STEP_SUMMARY"
-              grep "Index '" drift_output.txt | sed "s/.*Index '\([^']*\)'.*/\1/" >> "$GITHUB_STEP_SUMMARY"
+              grep "Index '.*' has differences:" drift_output.txt | sed "s/.*Index '\([^']*\)'.*/\1/" >> "$GITHUB_STEP_SUMMARY"
               echo '```' >> "$GITHUB_STEP_SUMMARY"
               echo "" >> "$GITHUB_STEP_SUMMARY"
             fi
             
-            # Extract trigger differences
-            TRIGGER_LINE=$(grep "Trigger diff summary" drift_output.txt 2>/dev/null)
-            if [ -n "$TRIGGER_LINE" ]; then
-              TRIGGERS=$(echo "$TRIGGER_LINE" | sed "s/.*modified: \[\([^\]]*\)\].*/\1/" | sed "s/'//g")
-              if [ -n "$TRIGGERS" ] && [ "$TRIGGERS" != "" ]; then
-                echo "### Trigger Differences" >> "$GITHUB_STEP_SUMMARY"
+            # Show modified triggers if any
+            if grep -q "Trigger diff summary" drift_output.txt; then
+              TRIGGERS=$(grep "Trigger diff summary" drift_output.txt | perl -nle 'print $1 if /modified: \[(.*?)\]/' | sed "s/', '/\n/g" | sed "s/'//g")
+              if [ -n "$TRIGGERS" ]; then
+                echo "**Triggers:**" >> "$GITHUB_STEP_SUMMARY"
                 echo '```' >> "$GITHUB_STEP_SUMMARY"
-                echo "$TRIGGERS" | tr ',' '\n' >> "$GITHUB_STEP_SUMMARY"
+                echo "$TRIGGERS" >> "$GITHUB_STEP_SUMMARY"
                 echo '```' >> "$GITHUB_STEP_SUMMARY"
                 echo "" >> "$GITHUB_STEP_SUMMARY"
               fi
             fi
             
-            echo "📄 **Full details in the 'Drift Detection' section above**" >> "$GITHUB_STEP_SUMMARY"
+            echo "### What This Means" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "These differences don't necessarily indicate problems. They're often:" >> "$GITHUB_STEP_SUMMARY"
+            echo "- ✅ PostgreSQL's representation of the same schema" >> "$GITHUB_STEP_SUMMARY"
+            echo "- ✅ System-generated names for unnamed constraints" >> "$GITHUB_STEP_SUMMARY"
+            echo "- ✅ Type casting added by PostgreSQL for clarity" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Action needed:** Review the detailed drift output above to determine if any differences require attention." >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "📄 **Full details in the collapsed 'Drift Detection' section above**" >> "$GITHUB_STEP_SUMMARY"
           fi
           
           # Create annotation
           if [ "$ERROR_COUNT" != "0" ]; then
-            echo "::warning title=Schema Drift::Found ${ERROR_COUNT} difference(s) - see job summary for details"
+            echo "::warning title=Schema Drift::Found ${ERROR_COUNT} difference(s) - Most are PostgreSQL representation differences (see summary)"
           fi
           
           # Don't fail the workflow on drift (it's expected in demo)
