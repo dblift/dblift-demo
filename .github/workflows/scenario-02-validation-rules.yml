@@ -1,0 +1,12 @@
+name: Scenario 02 - Validation Rules
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run:
+    uses: ./.github/workflows/scenario-runner.yml
+    with:
+      scenario-id: "02"
+      scenario-name: "Validation Rules"
+

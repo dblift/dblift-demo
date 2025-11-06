@@ -1,0 +1,58 @@
+name: Scenario Runner
+
+on:
+  workflow_call:
+    inputs:
+      scenario-id:
+        description: Numeric scenario identifier (e.g. 01)
+        required: true
+        type: string
+      scenario-name:
+        description: Friendly scenario name for logs
+        required: false
+        type: string
+
+jobs:
+  execute:
+    name: Run Scenario ${{ inputs.scenario-id }}
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: dblift_user
+          POSTGRES_PASSWORD: dblift_pass
+          POSTGRES_DB: dblift_demo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready -U dblift_user -d dblift_demo
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Ensure scripts are executable
+        run: chmod +x scripts/scenarios/run_scenario.sh
+
+      - name: Run scenario
+        env:
+          SCENARIO_ID: ${{ inputs.scenario-id }}
+          SCENARIO_NAME: ${{ inputs.scenario-name }}
+        run: |
+          scripts/scenarios/run_scenario.sh "${SCENARIO_ID}" "${SCENARIO_NAME}"
+
+      - name: Upload scenario artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenario-${{ inputs.scenario-id }}-logs
+          path: |
+            logs/scenario-${{ inputs.scenario-id }}
+          if-no-files-found: warn
+          retention-days: 14
+

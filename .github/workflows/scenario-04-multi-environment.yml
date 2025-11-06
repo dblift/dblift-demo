@@ -1,0 +1,12 @@
+name: Scenario 04 - Multi-Environment
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run:
+    uses: ./.github/workflows/scenario-runner.yml
+    with:
+      scenario-id: "04"
+      scenario-name: "Multi-Environment"
+

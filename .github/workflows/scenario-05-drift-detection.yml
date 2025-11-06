@@ -1,0 +1,12 @@
+name: Scenario 05 - Drift Detection
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run:
+    uses: ./.github/workflows/scenario-runner.yml
+    with:
+      scenario-id: "05"
+      scenario-name: "Drift Detection"
+

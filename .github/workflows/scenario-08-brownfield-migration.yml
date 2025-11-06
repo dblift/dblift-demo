@@ -1,0 +1,12 @@
+name: Scenario 08 - Brownfield Migration
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run:
+    uses: ./.github/workflows/scenario-runner.yml
+    with:
+      scenario-id: "08"
+      scenario-name: "Brownfield Migration"
+

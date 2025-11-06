@@ -46,6 +46,24 @@ Before enabling these workflows, you must:
 - **Purpose**: Detect schema drift across all environments
 - **Creates GitHub issue if drift detected**
 
+## Scenario Walkthrough Workflows
+
+Each demo scenario now has a dedicated workflow that runs the scripted walkthrough and publishes a step-by-step summary plus detailed artifacts.
+
+| Scenario | Workflow file | Highlights |
+|----------|---------------|------------|
+| 01 - Basic Migration | `scenario-01-basic-migration.yml` | Applies baseline migrations, shows before/after status |
+| 02 - Validation Rules | `scenario-02-validation-rules.yml` | Demonstrates failing vs. passing validation runs |
+| 03 - Rollback & Recovery | `scenario-03-rollback-recovery.yml` | Executes undo, simulates corruption, repairs history |
+| 04 - Multi-Environment | `scenario-04-multi-environment.yml` | Spins up dev/staging/prod DBs and deploys with validation |
+| 05 - Drift Detection | `scenario-05-drift-detection.yml` | Simulates drift and generates HTML/JSON reports |
+| 06 - CI/CD Integration | `scenario-06-ci-cd-integration.yml` | Surfaces workflow catalog and produces SARIF output |
+| 07 - Tag-Based Deployment | `scenario-07-tag-based-deployment.yml` | Runs selective migration waves using tags |
+| 08 - Brownfield Migration | `scenario-08-brownfield-migration.yml` | Baselines legacy schema then layers new changes |
+| 09 - Multi-Module Project | `scenario-09-multi-module.yml` | Manages module directories and module-scoped validation |
+
+Trigger any scenario from the Actions tab via **Run workflow** to see a narrated execution in the job summary and downloadable logs under `scenario-<id>-logs`.
+
 ## Required Secrets
 
 Configure these in your repository settings (Settings → Secrets and variables → Actions):
