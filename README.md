@@ -128,18 +128,18 @@ See [INSTALL.md](INSTALL.md) for detailed installation instructions.
 
 ## Support
 
-- Documentation: https://docs.dblift.io
-- Community: https://community.dblift.io
-- Issues: https://github.com/dblift/dblift/issues
-- Email: support@dblift.io
+- Website: https://dblift.com
+- Documentation: https://dblift.com/docs
+- Issues: https://github.com/cmodiano/dblift/issues
+- Email: contact@dblift.com
 
 ## Contributing
 
 This is a demo repository showing how to use DBLift.
 
 To contribute to DBLift itself or report issues:
-- Main repository: https://github.com/dblift/dblift
-- Issues: https://github.com/dblift/dblift/issues
+- Main repository: https://github.com/cmodiano/dblift
+- Issues: https://github.com/cmodiano/dblift/issues
 
 ## License
 
