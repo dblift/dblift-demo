@@ -1,17 +1,12 @@
 # DBLift Configuration - PostgreSQL Example
-# Database credentials should be provided via environment variables:
-# - DBLIFT_DB_URL
-# - DBLIFT_DB_USERNAME
-# - DBLIFT_DB_PASSWORD
-# - DBLIFT_DB_SCHEMA
+# Database credentials can be provided via environment variables:
+# - DBLIFT_DB_URL (required - JDBC connection URL)
+# - DBLIFT_DB_USER (required - database username)
+# - DBLIFT_DB_PASSWORD (required - database password)
+# - DBLIFT_DB_SCHEMA (optional - default schema)
+# Environment variables will override values specified here
 
-database:
-  # Database connection details are provided via environment variables
-  # Uncomment and modify these if you want to hardcode for local development:
-  # url: "jdbc:postgresql://localhost:5432/dblift_demo"
-  # schema: "public"
-  # username: "dblift_user"
-  # password: "dblift_pass"
+database: {}
 
 migrations:
   directory: "./migrations/core"

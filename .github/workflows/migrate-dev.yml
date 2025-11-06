@@ -43,7 +43,7 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             --network host \
             -e DBLIFT_DB_URL=jdbc:postgresql://localhost:5432/dblift_demo \
-            -e DBLIFT_DB_USERNAME=dblift_user \
+            -e DBLIFT_DB_USER=dblift_user \
             -e DBLIFT_DB_PASSWORD=dblift_pass \
             -e DBLIFT_DB_SCHEMA=public \
             ghcr.io/cmodiano/dblift:latest validate \
@@ -57,7 +57,7 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             --network host \
             -e DBLIFT_DB_URL=jdbc:postgresql://localhost:5432/dblift_demo \
-            -e DBLIFT_DB_USERNAME=dblift_user \
+            -e DBLIFT_DB_USER=dblift_user \
             -e DBLIFT_DB_PASSWORD=dblift_pass \
             -e DBLIFT_DB_SCHEMA=public \
             ghcr.io/cmodiano/dblift:latest migrate \
@@ -80,7 +80,7 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             --network host \
             -e DBLIFT_DB_URL=jdbc:postgresql://localhost:5432/dblift_demo \
-            -e DBLIFT_DB_USERNAME=dblift_user \
+            -e DBLIFT_DB_USER=dblift_user \
             -e DBLIFT_DB_PASSWORD=dblift_pass \
             -e DBLIFT_DB_SCHEMA=public \
             ghcr.io/cmodiano/dblift:latest diff \
