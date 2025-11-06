@@ -417,7 +417,7 @@ SQL
       append_summary ""
     fi
 
-    GOOD_FILE="${BAD_DIR}/V9_9_9__good_example.sql"
+    GOOD_FILE="${BAD_SRC_DIR}/V9_9_9__good_example.sql"
     cat > "${GOOD_FILE}" <<'SQL'
 CREATE TABLE GoodTable (
     id SERIAL PRIMARY KEY,
