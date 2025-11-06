@@ -3,7 +3,7 @@
 # Environment variables will override values specified here
 
 database:
-  url: "jdbc:postgresql://localhost:5432/dblift_demo"
+  url: "jdbc:postgresql://localhost:5432/dblift_demo?sslmode=disable"
   schema: "public"
   username: "dblift_user"
   password: "dblift_pass"

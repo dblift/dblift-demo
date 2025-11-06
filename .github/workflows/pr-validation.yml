@@ -60,13 +60,11 @@ jobs:
           docker run --rm \
             -v $(pwd)/migrations:/workspace/migrations \
             -v $(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml \
-            -v $(pwd):/output \
             ghcr.io/dblift/dblift:validation-latest \
             migrations/ \
             --dialect postgresql \
             --rules-file .dblift_rules.yaml \
-            --format sarif \
-            --output /output/validation-results.sarif || echo "SARIF generation completed"
+            --format sarif > validation-results.sarif || echo "SARIF generation completed"
 
       - name: Upload SARIF to GitHub Security
         if: steps.changed-files.outputs.any_changed == 'true'

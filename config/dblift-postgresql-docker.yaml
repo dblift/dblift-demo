@@ -2,7 +2,7 @@
 # Use this config when running DBLift from Docker with docker-compose
 
 database:
-  url: "jdbc:postgresql://dblift-demo-postgres:5432/dblift_demo"
+  url: "jdbc:postgresql://dblift-demo-postgres:5432/dblift_demo?sslmode=disable"
   schema: "public"
   username: "dblift_user"
   password: "dblift_pass"
