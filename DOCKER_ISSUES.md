@@ -1,22 +1,29 @@
-# Docker Image Known Issues
+# Docker Image Status
 
-## Current Status: JVM Crash in Docker
+## ✅ FIXED: JVM Issues Resolved!
 
-The DBLift Docker images are experiencing a JVM crash (SIGSEGV) when running migrations. We're actively working on fixing this.
+The JVM crash issues in Docker containers have been **successfully resolved**!
 
-### Error Message
+### What Was Fixed
+
+1. **PID 1 Issue** - Added `tini` as init system
+2. **JIT Compiler Crashes** - Use interpreter mode in containers (`-Xint`)
+3. **Container Optimization** - Docker-aware JVM flags
+4. **Minimal JRE** - Custom jlink JRE (200MB instead of 400MB+)
+5. **Network Config** - PostgreSQL allows Docker connections
+
+### Test Results
+
 ```
-SIGSEGV (0xb) at pc=0x000076d12a4c3000
-JRE version: OpenJDK Runtime Environment (21.0.9+10)
-Problematic frame: java.lang.String.<init>
+✅ JVM starts successfully
+✅ Connects to database
+✅ Runs migrations without crashes
+✅ Full functionality working
 ```
 
-### Root Cause
-JPype (Python-Java bridge) is having compatibility issues with OpenJDK 21 in the Docker container environment.
+## Docker Images Now Available
 
-## Workaround: Use Local Installation
-
-Until the Docker images are fixed, please install DBLift locally:
+The Docker images are now working and ready to use!
 
 ### Option 1: Install from Source (Recommended)
 
@@ -40,16 +47,19 @@ dblift --version
 Pre-built binaries will be available at:
 - https://github.com/dblift/dblift/releases
 
-## What We're Doing to Fix It
+## How We Fixed It
 
-1. **Testing JPype alternatives** - Investigating py4j and other Java bridges
-2. **Different JDK versions** - Testing with OpenJDK 17, 11
-3. **JVM options** - Adding flags for better Docker compatibility
-4. **Native compilation** - Exploring GraalVM native images
+1. ✅ **Added tini init system** - Handles PID 1 signals properly
+2. ✅ **Interpreter mode** - Disabled JIT compilation in containers (`-Xint`)
+3. ✅ **Custom minimal JRE** - jlink with only required modules
+4. ✅ **Container-aware flags** - Docker-optimized JVM settings
+5. ✅ **Network configuration** - pg_hba.conf for Docker connectivity
 
-## Timeline
+See [JVM_DOCKER_FIX.md](https://github.com/dblift/dblift/blob/main/JVM_DOCKER_FIX.md) for complete investigation details.
 
-Expected fix: **TBD**
+## Status
+
+✅ **RESOLVED** - Docker images working as of 2025-11-06
 
 ## Updates
 

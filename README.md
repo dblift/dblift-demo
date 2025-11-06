@@ -32,7 +32,7 @@ Try each command yourself and see real results!
 
 ## Quick Start (5 Minutes)
 
-> ⚠️ **Note:** Docker images are experiencing JVM compatibility issues. We recommend [local installation](#alternative-install-dblift-locally) for now. See [DOCKER_ISSUES.md](DOCKER_ISSUES.md) for details.
+> ✅ **Docker images are now working!** JVM issues have been resolved. See [DOCKER_ISSUES.md](DOCKER_ISSUES.md) for details on the fix.
 
 ### Step 1: Clone the Demo Repository
 
@@ -89,9 +89,9 @@ dblift info --config config/dblift-postgresql-docker.yaml
 
 Done! 🎉
 
-### Alternative: Install DBLift Locally (Recommended Until Docker Fixed)
+### Alternative: Install DBLift Locally
 
-**This is currently the recommended method:**
+If you prefer not to use Docker:
 
 **Option A: Download Binary**
 ```bash
