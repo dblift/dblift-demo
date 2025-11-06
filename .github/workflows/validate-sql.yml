@@ -17,10 +17,9 @@ jobs:
       - name: Validate SQL with Docker
         run: |
           docker run --rm \
-            -v $(pwd)/migrations:/workspace/migrations \
-            -v $(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml \
-            ghcr.io/dblift/dblift:validation-latest \
-            migrations/ \
+            -v ${{ github.workspace }}:/workspace \
+            ghcr.io/cmodiano/dblift-validation:latest \
+            validate-sql /workspace/migrations/ \
             --dialect postgresql \
-            --rules-file .dblift_rules.yaml \
+            --rules-file /workspace/config/.dblift_rules.yaml \
             --format github-actions
