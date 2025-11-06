@@ -44,8 +44,10 @@ cd dblift-demo
 ### Step 2: Start the Database
 
 ```bash
-docker compose up -d dblift-demo-postgres
+docker compose up -d postgres
 ```
+
+This starts the container named `dblift-demo-postgres`, which matches the hostname used in `config/dblift-postgresql-docker.yaml`.
 
 ### Step 3: Run Migrations with Docker
 
