@@ -303,8 +303,17 @@ append_summary ""
 
 case "${SCENARIO_ID}" in
   "01")
-    append_summary "## Step Summary"
-    append_summary "- Initializing database for basic migration demo."
+    append_summary "## Overview"
+    append_summary "- **Goal**: Apply the baseline schema to a fresh database."
+    append_summary "- **Focus**: Showcase `dblift migrate` and how migration progress appears in the history table."
+    append_summary "- **Key Questions**: What migrations are pending? Which ones got applied in this run?"
+    append_summary ""
+    append_summary "## Timeline"
+    append_summary "- 🔍 Inspect the existing schema history (should be empty for a fresh DB)."
+    append_summary "- ▶️ Execute `dblift migrate` using `config/dblift-postgresql.yaml`."
+    append_summary "- ✅ Confirm the new entries recorded in `dblift_schema_history`."
+    append_summary ""
+
     wait_for_db
     capture_migration_state "Schema history before running migrations" "before-migrate"
     run_dblift "Check database status (before)" info --config config/dblift-postgresql.yaml
@@ -312,8 +321,11 @@ case "${SCENARIO_ID}" in
     run_dblift "Check database status (after)" info --config config/dblift-postgresql.yaml
     capture_migration_state "Schema history after running migrations" "after-migrate"
     compare_history_snapshots "before-migrate" "after-migrate"
-    append_summary "- ✅ Applied baseline migrations using \`dblift migrate\`."
-    append_summary "- ✅ Verified schema history before and after deployment."
+    append_summary ""
+    append_summary "## Outcome"
+    append_summary "- ✅ Baseline migrations applied with `dblift migrate`."
+    append_summary "- 📊 Schema history table updated; new rows listed above."
+    append_summary "- 📁 Detailed command logs uploaded as workflow artifacts."
     ;;
 
   "02")
