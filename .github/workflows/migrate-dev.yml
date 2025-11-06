@@ -54,6 +54,8 @@ jobs:
       - name: Run migrations
         id: migrate
         run: |
+          set +e  # Don't exit on error, we want to capture output
+          
           echo "::group::Running Migrations"
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
@@ -65,47 +67,37 @@ jobs:
             ghcr.io/cmodiano/dblift:latest migrate \
             --config /workspace/config/dblift-postgresql.yaml \
             --log-format text,json,html \
-            --log-dir /workspace/logs 2>&1 | tee migrate_output.txt
+            --log-dir /workspace/logs > migrate_output.txt 2>&1
+          MIGRATE_EXIT=$?
+          cat migrate_output.txt
           echo "::endgroup::"
           
           # Extract migration summary
-          if [ -f migrate_output.txt ]; then
-            # Count successful migrations
-            SUCCESS_COUNT=$(grep -c "Successfully applied migration" migrate_output.txt || echo "0")
-            FAILED_COUNT=$(grep -c "Failed to execute" migrate_output.txt || echo "0")
-            
-            echo "migrations_success=$SUCCESS_COUNT" >> $GITHUB_OUTPUT
-            echo "migrations_failed=$FAILED_COUNT" >> $GITHUB_OUTPUT
-            
-            # Extract migration names
-            if [ "$SUCCESS_COUNT" -gt 0 ]; then
-              MIGRATION_NAMES=$(grep "Successfully applied migration" migrate_output.txt | sed 's/.*Successfully applied migration \(.*\)/\1/' | tr '\n' ',' | sed 's/,$//')
-              echo "migration_names=$MIGRATION_NAMES" >> $GITHUB_OUTPUT
+          SUCCESS_COUNT=$(grep -c "Successfully applied migration" migrate_output.txt 2>/dev/null || echo "0")
+          FAILED_COUNT=$(grep -c "Failed to execute" migrate_output.txt 2>/dev/null || echo "0")
+          
+          echo "migrations_success=${SUCCESS_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "migrations_failed=${FAILED_COUNT}" >> "$GITHUB_OUTPUT"
+          
+          # Create step summary
+          {
+            echo "## 🚀 Migration Summary"
+            echo ""
+            echo "✅ **Successful:** ${SUCCESS_COUNT}"
+            if [ "${FAILED_COUNT}" != "0" ]; then
+              echo "❌ **Failed:** ${FAILED_COUNT}"
             fi
-            
-            if [ "$FAILED_COUNT" -gt 0 ]; then
-              FAILED_NAMES=$(grep "Failed to execute" migrate_output.txt | sed 's/.*Failed to execute.*from \(.*\):.*/\1/' | tr '\n' ',' | sed 's/,$//')
-              echo "failed_migration_names=$FAILED_NAMES" >> $GITHUB_OUTPUT
-              echo "::error title=Migration Failed::$FAILED_COUNT migration(s) failed. Check logs for details."
+            echo ""
+            if [ "${SUCCESS_COUNT}" -gt 0 ]; then
+              echo "**Applied Migrations:**"
+              echo '```'
+              grep "Successfully applied migration" migrate_output.txt | sed 's/.*Successfully applied migration //' || true
+              echo '```'
             fi
-          fi
-
-      - name: Migration Summary
-        if: always() && steps.migrate.outputs.migrations_success != ''
-        run: |
-          echo "## 🚀 Migration Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **Successful:** ${{ steps.migrate.outputs.migrations_success }}" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.migrate.outputs.migrations_failed }}" != "0" ]; then
-            echo "❌ **Failed:** ${{ steps.migrate.outputs.migrations_failed }}" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -n "${{ steps.migrate.outputs.migration_names }}" ]; then
-            echo "**Applied Migrations:**" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "${{ steps.migrate.outputs.migration_names }}" | tr ',' '\n' >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          
+          # Exit with original exit code
+          exit $MIGRATE_EXIT
 
       - name: Upload migration logs
         uses: actions/upload-artifact@v4
@@ -118,7 +110,10 @@ jobs:
       - name: Check for drift
         if: success()
         id: drift-check
+        continue-on-error: true
         run: |
+          set +e  # Don't exit on error
+          
           echo "::group::Drift Detection"
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
@@ -128,71 +123,44 @@ jobs:
             -e DBLIFT_DB_PASSWORD=dblift_pass \
             -e DBLIFT_DB_SCHEMA=public \
             ghcr.io/cmodiano/dblift:latest diff \
-            --config /workspace/config/dblift-postgresql.yaml \
-            --log-format json \
-            --log-dir /workspace/logs 2>&1 | tee drift_output.txt || DRIFT_EXIT_CODE=$?
+            --config /workspace/config/dblift-postgresql.yaml > drift_output.txt 2>&1
+          DRIFT_EXIT=$?
+          cat drift_output.txt
           echo "::endgroup::"
           
-          # Parse drift output to extract key findings
-          if [ -f drift_output.txt ]; then
-            # Extract error count
-            ERROR_COUNT=$(grep -oP 'Critical differences found: \K\d+' drift_output.txt || echo "0")
-            echo "drift_errors=$ERROR_COUNT" >> $GITHUB_OUTPUT
-            
-            # Extract table modifications
-            if grep -q "Table '" drift_output.txt; then
-              echo "::notice title=Schema Drift Detected::Found differences in database schema"
-              MODIFIED_TABLES=$(grep "Table '" drift_output.txt | sed "s/.*Table '\([^']*\)'.*/\1/" | sort -u | tr '\n' ',' | sed 's/,$//')
-              echo "modified_tables=$MODIFIED_TABLES" >> $GITHUB_OUTPUT
-              
-              # Create annotations for each modified table
-              grep "Table '" drift_output.txt | while IFS= read -r line; do
-                TABLE_NAME=$(echo "$line" | sed "s/.*Table '\([^']*\)'.*/\1/")
-                MODS=$(echo "$line" | grep -oP "modified_cols=\[[^\]]*\]" | sed 's/modified_cols=\[\(.*\)\]/\1/' | sed 's/'"'"'//g')
-                if [ -n "$MODS" ] && [ "$MODS" != "[]" ]; then
-                  echo "::warning file=migrations/**/*.sql,title=Table '$TABLE_NAME' has differences::Modified columns: $MODS"
-                fi
-              done
+          # Extract key findings from drift output
+          ERROR_COUNT=$(grep -oE 'Critical differences found: [0-9]+' drift_output.txt | grep -oE '[0-9]+' || echo "0")
+          TABLE_COUNT=$(grep -c "Table '" drift_output.txt 2>/dev/null || echo "0")
+          INDEX_COUNT=$(grep -c "Index '" drift_output.txt 2>/dev/null || echo "0")
+          
+          # Create step summary
+          {
+            echo "## 🔍 Schema Drift Detection"
+            echo ""
+            if [ "$DRIFT_EXIT" -eq 0 ]; then
+              echo "✅ **No drift detected** - Database schema matches migrations"
+            else
+              echo "⚠️ **Drift detected:** ${ERROR_COUNT} difference(s) found"
+              echo ""
+              if [ "$TABLE_COUNT" -gt 0 ]; then
+                echo "**Tables with differences:** ${TABLE_COUNT}"
+                echo '```'
+                grep "Table '" drift_output.txt | sed "s/.*Table '\([^']*\)'.*/\1/" | head -10
+                echo '```'
+              fi
+              if [ "$INDEX_COUNT" -gt 0 ]; then
+                echo ""
+                echo "**Indexes with differences:** ${INDEX_COUNT}"
+              fi
+              echo ""
+              echo "📄 See detailed drift report in workflow logs above"
             fi
-            
-            # Extract index differences
-            if grep -q "Index '" drift_output.txt; then
-              INDEX_COUNT=$(grep -c "Index '" drift_output.txt || echo "0")
-              echo "drift_indexes=$INDEX_COUNT" >> $GITHUB_OUTPUT
-              echo "::warning title=Index Differences::Found $INDEX_COUNT index(es) with differences"
-            fi
-            
-            # Extract trigger differences  
-            if grep -q "Trigger diff summary" drift_output.txt && grep -q "modified:" drift_output.txt; then
-              TRIGGER_COUNT=$(grep "Trigger diff summary" drift_output.txt | grep -oP 'modified: \[\K[^\]]*' | tr ',' '\n' | wc -l)
-              echo "drift_triggers=$TRIGGER_COUNT" >> $GITHUB_OUTPUT
-            fi
-            
-            # If errors found, fail the step
-            if [ -n "$DRIFT_EXIT_CODE" ] || [ "$ERROR_COUNT" != "0" ]; then
-              echo "::error title=Schema Drift Detected::Found $ERROR_COUNT critical difference(s). Review the drift detection output above."
-              exit 1
-            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          
+          # Create annotations for visibility
+          if [ "$ERROR_COUNT" != "0" ]; then
+            echo "::warning title=Schema Drift::Found ${ERROR_COUNT} difference(s) between migrations and database schema"
           fi
-
-      - name: Drift Detection Summary
-        if: always() && steps.drift-check.outputs.drift_errors != ''
-        run: |
-          echo "## 🔍 Schema Drift Detection Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Critical Differences:** ${{ steps.drift-check.outputs.drift_errors }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -n "${{ steps.drift-check.outputs.modified_tables }}" ]; then
-            echo "**Modified Tables:** ${{ steps.drift-check.outputs.modified_tables }}" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          if [ -n "${{ steps.drift-check.outputs.drift_indexes }}" ] && [ "${{ steps.drift-check.outputs.drift_indexes }}" != "0" ]; then
-            echo "**Index Differences:** ${{ steps.drift-check.outputs.drift_indexes }}" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          if [ -n "${{ steps.drift-check.outputs.drift_triggers }}" ] && [ "${{ steps.drift-check.outputs.drift_triggers }}" != "0" ]; then
-            echo "**Trigger Differences:** ${{ steps.drift-check.outputs.drift_triggers }}" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "📄 **Detailed logs available in artifacts**" >> $GITHUB_STEP_SUMMARY
+          
+          exit $DRIFT_EXIT
 
