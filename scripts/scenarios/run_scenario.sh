@@ -405,7 +405,6 @@ SQL
       --dialect postgresql \
       --rules-file config/.dblift_rules.yaml \
       --format console || true
-    )
     BAD_LOG="${LAST_LOG_PATH}"
     if [[ -f "${BAD_LOG}" ]]; then
       append_summary "### 🔍 Failure Output Snapshot"
