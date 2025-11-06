@@ -375,9 +375,9 @@ case "${SCENARIO_ID}" in
       --rules-file config/.dblift_rules.yaml \
       --format console
 
-    BAD_DIR="${LOG_ROOT}/validation-demo"
-    mkdir -p "${BAD_DIR}"
-    BAD_FILE="${BAD_DIR}/V9_9_9__bad_example.sql"
+    BAD_SRC_DIR="migrations/examples/bad-demo"
+    mkdir -p "${BAD_SRC_DIR}"
+    BAD_FILE="${BAD_SRC_DIR}/V9_9_9__bad_example.sql"
     cat > "${BAD_FILE}" <<'SQL'
 -- Intentional violations for Scenario 02
 CREATE TABLE BadTable (
@@ -401,7 +401,7 @@ INSERT INTO BadTable SELECT * FROM users;
 DELETE FROM BadTable;
 SQL
 
-    run_dblift "Validate bad migration (expected failures)" validate-sql "${BAD_DIR}/" \
+    run_dblift "Validate bad migration (expected failures)" validate-sql "${BAD_SRC_DIR}/" \
       --dialect postgresql \
       --rules-file config/.dblift_rules.yaml \
       --format console || true
