@@ -9,6 +9,10 @@ on:
       - 'config/dblift-postgresql.yaml'
   workflow_dispatch:  # Allow manual triggers
 
+permissions:
+  contents: read
+  issues: write  # Allow creating issues on failure
+
 jobs:
   migrate:
     name: Run Migrations on Production Database

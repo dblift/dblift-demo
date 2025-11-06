@@ -7,6 +7,10 @@ on:
     paths:
       - 'migrations/**/*.sql'
       - 'config/dblift-postgresql.yaml'
+  workflow_dispatch:  # Allow manual triggers
+
+permissions:
+  contents: read
 
 jobs:
   migrate:
