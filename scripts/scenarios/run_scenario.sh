@@ -448,13 +448,13 @@ SQL
   "03")
     append_summary "## Overview"
     append_summary "- **Goal**: Demonstrate safe rollback and recovery."
-    append_summary "- **Focus**: Undo recent migrations without a target version, then detect and repair corruption."
+    append_summary "- **Focus**: Undo recent migrations down to version 1.0.3, then detect and repair corruption."
     append_summary "- **Key Outputs**: Schema history snapshots plus validation/repair logs."
     append_summary ""
     append_summary "## Execution Plan"
     append_summary "- 🔁 Reset schema to guarantee a known baseline."
     append_summary "- ▶️ Apply migrations through the latest version and capture history."
-    append_summary "- ⏪ Use `dblift undo --count 3` to revert recent features."
+    append_summary "- ⏪ Use `dblift undo --target-version 1.0.3` to revert feature/performance migrations."
     append_summary "- 🩺 Simulate checksum corruption, detect it, and run `dblift repair`."
     append_summary ""
 
@@ -466,9 +466,9 @@ SQL
     BEFORE_ROLLBACK_INFO="${LAST_LOG_PATH}"
     show_log_excerpt "📋 Schema history before rollback" "${BEFORE_ROLLBACK_INFO}" 120
 
-    run_dblift "Rollback last three migrations" undo \
+    run_dblift "Rollback to version 1.0.3" undo \
       --config config/dblift-postgresql.yaml \
-      --count 3
+      --target-version 1.0.3
     run_dblift "Inspect schema history after rollback" info --config config/dblift-postgresql.yaml
     AFTER_ROLLBACK_INFO="${LAST_LOG_PATH}"
     show_log_excerpt "📋 Schema history after rollback" "${AFTER_ROLLBACK_INFO}" 120
@@ -484,7 +484,7 @@ SQL
 
     run_dblift "Repair schema history" repair --config config/dblift-postgresql.yaml
     run_dblift "Re-validate after repair" validate --config config/dblift-postgresql.yaml
-    append_summary "- ✅ Undo sequence completed with `dblift undo --count 3`."
+    append_summary "- ✅ Undo sequence completed with `dblift undo --target-version 1.0.3`."
     append_summary "- ✅ Corruption detected and automatically repaired."
     append_summary "- ✅ Final validation confirms schema integrity."
     ;;
