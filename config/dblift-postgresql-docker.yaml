@@ -12,6 +12,9 @@ migrations:
   directories:
     - "./migrations/features"
     - "./migrations/performance"
+  undo_directories:
+    - "./migrations/features"
+    - "./migrations/performance"
   recursive: true
   script_encoding: "utf-8"
 
