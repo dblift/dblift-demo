@@ -1,0 +1,22 @@
+rules:
+  - name: require_primary_key
+    type: presence
+    target: table
+    must_have_primary_key: true
+    message: "All tables must have a primary key"
+    severity: error
+
+  - name: require_audit_columns
+    type: presence
+    target: table
+    must_have_columns: ["created_at", "updated_at", "created_by"]
+    message: "Tables must have audit columns"
+    severity: error
+
+  - name: fk_requires_index
+    type: relational
+    target: foreign_key
+    requires_index: true
+    message: "Foreign keys must have indexes"
+    severity: warning
+

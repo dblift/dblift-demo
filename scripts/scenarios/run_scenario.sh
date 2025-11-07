@@ -234,6 +234,12 @@ psql_query() {
   return "${status}"
 }
 
+reset_database() {
+  local description="${1:-Reset database schema}"
+  local sql="DROP SCHEMA IF EXISTS ${DB_SCHEMA} CASCADE; CREATE SCHEMA ${DB_SCHEMA};"
+  psql_exec "${description}" "${sql}"
+}
+
 capture_migration_state() {
   local heading="$1"
   local snapshot_id="${2:-}"
@@ -360,9 +366,9 @@ case "${SCENARIO_ID}" in
 
   "02")
     append_summary "## Overview"
-    append_summary "- **Goal**: Experience DBLift's validation engine catching real violations."
-    append_summary "- **Focus**: Run validations on good vs. intentionally bad SQL and compare summaries."
-    append_summary "- **What You’ll See**: Rich console output with counts by severity and rule category."
+    append_summary "- **Goal**: Exercise DBLift validation focusing on business and performance rules."
+    append_summary "- **Focus**: Disable cosmetic style checks so we can spotlight schema risks."
+    append_summary "- **What You’ll See**: Rule-by-rule severity output using `config/.dblift_rules_performance.yaml`."
     append_summary ""
     append_summary "## Timeline"
     append_summary "- ✅ Validate the repository’s existing migrations (expected to pass)."
@@ -372,7 +378,7 @@ case "${SCENARIO_ID}" in
 
     run_dblift "Validate existing migrations" validate-sql migrations/ \
       --dialect postgresql \
-      --rules-file config/.dblift_rules.yaml \
+      --rules-file config/.dblift_rules_performance.yaml \
       --format console
 
     BAD_SRC_DIR="migrations/examples/bad-demo"
@@ -403,7 +409,7 @@ SQL
 
     run_dblift "Validate bad migration (expected failures)" validate-sql "${BAD_SRC_DIR}/" \
       --dialect postgresql \
-      --rules-file config/.dblift_rules.yaml \
+      --rules-file config/.dblift_rules_performance.yaml \
       --format console || true
     BAD_LOG="${LAST_LOG_PATH}"
     if [[ -f "${BAD_LOG}" ]]; then
@@ -430,27 +436,43 @@ SQL
 
     run_dblift "Validate fixed migration" validate-sql "${GOOD_FILE}" \
       --dialect postgresql \
-      --rules-file config/.dblift_rules.yaml \
+      --rules-file config/.dblift_rules_performance.yaml \
       --format console
 
-    append_summary "- ✅ Baseline migrations pass validation."
-    append_summary "- ❌ Intentional violations captured by validation rules."
-    append_summary "- ✅ After fixes, validation succeeds again."
+    append_summary "- ✅ Baseline migrations pass when only strategic rules are enforced."
+    append_summary "- ❌ Intentional violations trigger business/performance findings."
+    append_summary "- ✅ After fixes, validation succeeds again under the focused ruleset."
     ;;
 
   "03")
-    append_summary "## Step Summary"
-    append_summary "- Showcasing rollback, corruption detection, and repair."
+    append_summary "## Overview"
+    append_summary "- **Goal**: Demonstrate safe rollback and recovery."
+    append_summary "- **Focus**: Undo recent migrations without a target version, then detect and repair corruption."
+    append_summary "- **Key Outputs**: Schema history snapshots plus validation/repair logs."
+    append_summary ""
+    append_summary "## Execution Plan"
+    append_summary "- 🔁 Reset schema to guarantee a known baseline."
+    append_summary "- ▶️ Apply migrations through the latest version and capture history."
+    append_summary "- ⏪ Use `dblift undo --count 3` to revert recent features."
+    append_summary "- 🩺 Simulate checksum corruption, detect it, and run `dblift repair`."
+    append_summary ""
+
     wait_for_db
+    reset_database "Reset schema for rollback scenario"
+
     run_dblift "Apply migrations through current version" migrate --config config/dblift-postgresql.yaml
-    run_dblift "Confirm schema status" info --config config/dblift-postgresql.yaml
+    run_dblift "Confirm schema status (before rollback)" info --config config/dblift-postgresql.yaml
+    BEFORE_ROLLBACK_INFO="${LAST_LOG_PATH}"
+    show_log_excerpt "📋 Schema history before rollback" "${BEFORE_ROLLBACK_INFO}" 120
 
-    run_dblift "Rollback to version 1.0.2" undo \
+    run_dblift "Rollback last three migrations" undo \
       --config config/dblift-postgresql.yaml \
-      --target-version 1.0.2
-    run_dblift "Verify rollback state" info --config config/dblift-postgresql.yaml
+      --count 3
+    run_dblift "Inspect schema history after rollback" info --config config/dblift-postgresql.yaml
+    AFTER_ROLLBACK_INFO="${LAST_LOG_PATH}"
+    show_log_excerpt "📋 Schema history after rollback" "${AFTER_ROLLBACK_INFO}" 120
 
-    run_dblift "Reapply migrations" migrate --config config/dblift-postgresql.yaml
+    run_dblift "Reapply migrations to latest" migrate --config config/dblift-postgresql.yaml
 
     psql_exec "Simulate checksum corruption" \
       "UPDATE dblift_schema_history SET checksum = 'corrupted' WHERE version = '1.0.3';"
@@ -461,99 +483,173 @@ SQL
 
     run_dblift "Repair schema history" repair --config config/dblift-postgresql.yaml
     run_dblift "Re-validate after repair" validate --config config/dblift-postgresql.yaml
-    append_summary "- ✅ Undo migration executed and verified."
+    append_summary "- ✅ Undo sequence completed with `dblift undo --count 3`."
     append_summary "- ✅ Corruption detected and automatically repaired."
+    append_summary "- ✅ Final validation confirms schema integrity."
     ;;
 
   "04")
-    append_summary "## Step Summary"
-    append_summary "- Demonstrating schema drift detection workflow."
+    append_summary "## Overview"
+    append_summary "- **Goal**: Catch unplanned schema drift with clear, auditable output."
+    append_summary "- **Focus**: Establish a clean baseline, introduce manual drift, and surface critical differences."
+    append_summary "- **Key Outputs**: Diff summaries plus HTML/JSON reports captured as artifacts."
+    append_summary ""
+    append_summary "## Execution Plan"
+    append_summary "- 🔁 Reset schema and apply migrations with the standard configuration."
+    append_summary "- 📊 Run an initial `dblift diff` to verify the database matches migrations."
+    append_summary "- ✍️ Execute `scripts/simulate-drift.sql` to introduce unmanaged changes."
+    append_summary "- 🚨 Re-run `dblift diff`, expecting failure, and publish formatted reports."
+    append_summary ""
+
     wait_for_db
+    reset_database "Reset schema for drift detection"
+
     run_dblift "Apply migrations" migrate --config config/dblift-postgresql.yaml
-    run_dblift "Initial drift check" diff --config config/dblift-postgresql.yaml
+    run_dblift "Initial drift check (expected clean)" diff --config config/dblift-postgresql.yaml
+    CLEAN_DIFF_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "✅ Drift check (clean baseline)" "${CLEAN_DIFF_LOG}" 80
+
     psql_file "Simulate drift changes" scripts/simulate-drift.sql
 
     if ! run_dblift "Detect drift after manual changes" diff --config config/dblift-postgresql.yaml; then
       append_summary "- ⚠️ Drift detected after manual schema changes."
     fi
+    DRIFT_DIFF_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "⚠️ Drift findings" "${DRIFT_DIFF_LOG}" 120
+
+    REPORT_DIR_HOST="${LOG_ROOT}/reports"
+    REPORT_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/reports"
+    mkdir -p "${REPORT_DIR_HOST}"
 
     run_dblift "Generate HTML drift report" diff \
       --config config/dblift-postgresql.yaml \
       --log-format html \
-      --log-dir "${LOG_ROOT}/reports"
+      --log-dir "${REPORT_DIR_CONTAINER}"
+
+    DRIFT_JSON_HOST="${LOG_ROOT}/drift-report.json"
+    DRIFT_JSON_CONTAINER="./logs/scenario-${SCENARIO_ID}/drift-report.json"
 
     run_dblift "Generate JSON drift report" diff \
       --config config/dblift-postgresql.yaml \
       --format json \
-      --output "${LOG_ROOT}/drift-report.json"
+      --output "${DRIFT_JSON_CONTAINER}"
 
-    append_summary "- ✅ Clean drift check passes before manual changes."
-    append_summary "- ✅ Drift detected and reports produced for review."
+    append_summary "- ✅ Clean baseline confirmed before introducing drift."
+    append_summary "- ✅ Drift surfaced with error severity and summarised above."
+    append_summary "- 📦 Additional HTML/JSON assets attached for auditing."
     ;;
 
   "05")
-    append_summary "## Step Summary"
-    append_summary "- Highlighting CI/CD integration pieces."
+    append_summary "## Overview"
+    append_summary "- **Goal**: Demonstrate CI/CD assets available in this repo."
+    append_summary "- **Focus**: Enumerate workflows and produce a SARIF validation report for code scanning."
+    append_summary "- **Key Outputs**: Workflow catalog plus the first lines of the generated SARIF file."
+    append_summary ""
+    append_summary "## Execution Plan"
+    append_summary "- 📚 List available GitHub workflows."
+    append_summary "- 🔍 Inspect the `validate-sql` workflow definition."
+    append_summary "- 🧾 Run `dblift validate-sql` to emit SARIF using the default ruleset."
     append_summary ""
 
     run_command "List available workflows" ls -1 .github/workflows
     run_command "Show SQL validation workflow" cat .github/workflows/validate-sql.yml
 
+    SARIF_DIR_HOST="${LOG_ROOT}/sarif"
+    SARIF_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/sarif"
+    mkdir -p "${SARIF_DIR_HOST}"
     run_dblift "Generate SARIF validation report" validate-sql migrations/ \
       --dialect postgresql \
       --rules-file config/.dblift_rules.yaml \
-      --format sarif \
-      --output "${LOG_ROOT}/validation-results.sarif"
+      --log-format sarif \
+      --log-dir "${SARIF_DIR_CONTAINER}"
 
-    run_command "Preview SARIF report headers" head -n 40 "${LOG_ROOT}/validation-results.sarif"
-
-    append_summary "- ✅ Workflows enumerated for quick reference."
-    append_summary "- ✅ SARIF validation report generated for code scanning integration."
+    SARIF_GENERATED_FILE="$(find "${SARIF_DIR_HOST}" -maxdepth 1 -name '*.sarif' | head -n 1 || true)"
+    if [[ -n "${SARIF_GENERATED_FILE}" ]]; then
+      run_command "Preview SARIF report headers" head -n 40 "${SARIF_GENERATED_FILE}"
+      append_summary "- ✅ Workflow inventory and sample YAML surfaced above."
+      append_summary "- ✅ SARIF report generated via `validate-sql`; header preview included."
+    else
+      append_summary "- ⚠️ Expected SARIF output not found under ${SARIF_DIR_HOST}."
+    fi
     ;;
 
   "06")
-    append_summary "## Step Summary"
-    append_summary "- Performing selective deployments using tags."
+    append_summary "## Overview"
+    append_summary "- **Goal**: Illustrate tag-based deployments for feature toggles."
+    append_summary "- **Focus**: Apply core migrations, roll out tagged features selectively, and inspect status."
+    append_summary "- **Key Outputs**: Command transcripts showing which tags were included or excluded."
+    append_summary ""
+    append_summary "## Execution Plan"
+    append_summary "- 🔁 Reset schema to ensure tags control what lands in each step."
+    append_summary "- 🏷️ Deploy core migrations while excluding feature tags."
+    append_summary "- 📬 Roll out `user-mgmt` and `notifications` tags individually."
+    append_summary "- 🔐 Inspect the `security` tag status and finish with an exclusion run."
+    append_summary ""
+
     wait_for_db
-    run_dblift "Apply core schema only" migrate \
+    reset_database "Reset schema for tag deployment demo"
+
+    run_dblift "Apply core schema (exclude feature tags)" migrate \
       --config config/dblift-postgresql.yaml \
       --exclude-tags user-mgmt,notifications,analytics,security
+    CORE_ONLY_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🚀 Core deployment (tags excluded)" "${CORE_ONLY_LOG}" 80
 
-    run_dblift "Deploy user management features" migrate \
+    run_dblift "Deploy user management features (tags=user-mgmt)" migrate \
       --config config/dblift-postgresql.yaml \
       --tags user-mgmt
+    USER_MGMT_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🏷️ user-mgmt rollout" "${USER_MGMT_LOG}" 40
 
-    run_dblift "Deploy notifications" migrate \
+    run_dblift "Deploy notifications (tags=notifications)" migrate \
       --config config/dblift-postgresql.yaml \
       --tags notifications
+    NOTIFICATIONS_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🏷️ notifications rollout" "${NOTIFICATIONS_LOG}" 40
 
     run_dblift "Check security tag status" info \
       --config config/dblift-postgresql.yaml \
       --tags security
+    SECURITY_STATUS_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🔐 security tag status" "${SECURITY_STATUS_LOG}" 60
 
     run_dblift "Deploy everything except analytics" migrate \
       --config config/dblift-postgresql.yaml \
       --exclude-tags analytics
+    EXCEPT_ANALYTICS_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🚫 analytics excluded rollout" "${EXCEPT_ANALYTICS_LOG}" 60
 
-    append_summary "- ✅ Core migrations deployed without optional feature tags."
-    append_summary "- ✅ Targeted feature deployments executed via tags."
-    append_summary "- ✅ Tag-filtered status inspection completed."
+    append_summary "- ✅ Core-only run excluded all feature tags as expected."
+    append_summary "- ✅ `user-mgmt` and `notifications` tags deployed on demand."
+    append_summary "- ✅ Tag-specific `info` output captured for the security subset."
+    append_summary "- ✅ Final pass excluded analytics while allowing remaining features."
     ;;
 
   "07")
-    append_summary "## Step Summary"
-    append_summary "- Simulating brownfield adoption with baseline and new changes."
+    append_summary "## Overview"
+    append_summary "- **Goal**: Showcase brownfield onboarding using `dblift baseline`."
+    append_summary "- **Focus**: Record an existing schema, then add new migrations safely."
+    append_summary "- **Key Outputs**: Baseline command transcript plus new migration status."
+    append_summary ""
+    append_summary "## Execution Plan"
+    append_summary "- 🏗️ Seed the database manually to emulate a legacy system."
+    append_summary "- 🧾 Generate a one-off DBLift config that points to extracted SQL."
+    append_summary "- 📌 Run `dblift baseline` and then add a new migration on top."
+    append_summary ""
+
     wait_for_db
+    reset_database "Reset schema for brownfield demo"
 
-    psql_file "Reset demo schema" migrations/core/V1_0_0__Initial_schema.sql
-    psql_file "Load additional baseline objects" migrations/core/V1_0_1__Add_customers.sql
-    psql_file "Load more baseline objects" migrations/core/V1_0_2__Add_products.sql
+    psql_file "Seed legacy schema (initial)" migrations/core/V1_0_0__Initial_schema.sql
+    psql_file "Seed legacy schema (customers)" migrations/core/V1_0_1__Add_customers.sql
+    psql_file "Seed legacy schema (products)" migrations/core/V1_0_2__Add_products.sql
 
-    BROWNFIELD_DIR="${LOG_ROOT}/brownfield"
-    mkdir -p "${BROWNFIELD_DIR}/migrations"
-    cp migrations/core/V1_0_0__Initial_schema.sql "${BROWNFIELD_DIR}/migrations/V1_0_0__Baseline_existing_schema.sql"
+    BROWNFIELD_DIR_HOST="${LOG_ROOT}/brownfield"
+    BROWNFIELD_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/brownfield"
+    mkdir -p "${BROWNFIELD_DIR_HOST}/migrations"
+    cp migrations/core/V1_0_0__Initial_schema.sql "${BROWNFIELD_DIR_HOST}/migrations/V1_0_0__Baseline_existing_schema.sql"
 
-    cat > "${BROWNFIELD_DIR}/dblift-brownfield.yaml" <<EOF
+    cat > "${BROWNFIELD_DIR_HOST}/dblift-brownfield.yaml" <<EOF
 database:
   url: "${DB_URL_DEFAULT}"
   schema: "${DB_SCHEMA}"
@@ -561,22 +657,25 @@ database:
   password: "${DB_PASSWORD}"
 
 migrations:
-  directory: "./logs/scenario-${SCENARIO_ID}/brownfield/migrations"
+  directory: "${BROWNFIELD_DIR_CONTAINER}/migrations"
   recursive: true
 
 logging:
   level: INFO
   log_format: "text"
-  log_dir: "./logs/scenario-${SCENARIO_ID}/brownfield/logs"
+  log_dir: "${BROWNFIELD_DIR_CONTAINER}/logs"
 EOF
 
     run_dblift "Baseline existing database" baseline \
-      --config "${BROWNFIELD_DIR}/dblift-brownfield.yaml" \
+      --config "${BROWNFIELD_DIR_CONTAINER}/dblift-brownfield.yaml" \
       --baseline-version 1.0.0 \
       --baseline-description "Initial baseline of existing production database"
+    BASELINE_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🧾 Baseline execution" "${BASELINE_LOG}" 80
 
-    NEW_MIG="${BROWNFIELD_DIR}/migrations/V1_0_1__Add_api_keys_table.sql"
-    cat > "${NEW_MIG}" <<'SQL'
+    NEW_MIG_HOST="${BROWNFIELD_DIR_HOST}/migrations/V1_0_1__Add_api_keys_table.sql"
+    NEW_MIG_CONTAINER="${BROWNFIELD_DIR_CONTAINER}/migrations/V1_0_1__Add_api_keys_table.sql"
+    cat > "${NEW_MIG_HOST}" <<'SQL'
 CREATE TABLE IF NOT EXISTS api_keys (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id),
@@ -587,22 +686,39 @@ CREATE TABLE IF NOT EXISTS api_keys (
 );
 SQL
 
-    run_dblift "Apply post-baseline migration" migrate --config "${BROWNFIELD_DIR}/dblift-brownfield.yaml"
-    run_dblift "Inspect status after baseline + new migration" info --config "${BROWNFIELD_DIR}/dblift-brownfield.yaml"
+    run_dblift "Apply post-baseline migration" migrate --config "${BROWNFIELD_DIR_CONTAINER}/dblift-brownfield.yaml"
+    POST_BASELINE_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🚀 Post-baseline migration" "${POST_BASELINE_LOG}" 40
 
-    append_summary "- ✅ Database baselined without executing legacy changes."
-    append_summary "- ✅ New migrations applied on top of baseline safely."
+    run_dblift "Inspect status after baseline + new migration" info --config "${BROWNFIELD_DIR_CONTAINER}/dblift-brownfield.yaml"
+    STATUS_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "📋 Brownfield status snapshot" "${STATUS_LOG}" 80
+
+    append_summary "- ✅ Legacy objects captured via `dblift baseline`."
+    append_summary "- ✅ New migration executed from the managed directory."
+    append_summary "- ✅ Status output confirms baseline + incremental change."
     ;;
 
   "08")
-    append_summary "## Step Summary"
-    append_summary "- Managing multi-module migrations with directory orchestration."
+    append_summary "## Overview"
+    append_summary "- **Goal**: Demonstrate multi-module orchestration with directory overrides."
+    append_summary "- **Focus**: Blend core migrations with module-specific directories and run targeted operations."
+    append_summary "- **Key Outputs**: Multi-module config, deploy logs, and module validation results."
+    append_summary ""
+    append_summary "## Execution Plan"
+    append_summary "- 🔁 Reset schema to guarantee predictable results."
+    append_summary "- 🧱 Generate module-specific migration directories on the fly."
+    append_summary "- 🚀 Deploy everything, then run tag-scoped and directory-scoped operations."
+    append_summary ""
+
     wait_for_db
+    reset_database "Reset schema for multi-module demo"
 
-    MODULE_ROOT="${LOG_ROOT}/modules"
-    mkdir -p "${MODULE_ROOT}/inventory/migrations" "${MODULE_ROOT}/crm/migrations" "${MODULE_ROOT}/analytics/migrations"
+    MODULE_ROOT_HOST="${LOG_ROOT}/modules"
+    MODULE_ROOT_CONTAINER="./logs/scenario-${SCENARIO_ID}/modules"
+    mkdir -p "${MODULE_ROOT_HOST}/inventory/migrations" "${MODULE_ROOT_HOST}/crm/migrations" "${MODULE_ROOT_HOST}/analytics/migrations"
 
-    cat > "${MODULE_ROOT}/inventory/migrations/V3_0_0__Create_inventory_schema[inventory].sql" <<'SQL'
+    cat > "${MODULE_ROOT_HOST}/inventory/migrations/V3_0_0__Create_inventory_schema[inventory].sql" <<'SQL'
 CREATE TABLE IF NOT EXISTS inventory_items (
     id SERIAL PRIMARY KEY,
     product_id INTEGER NOT NULL REFERENCES products(id),
@@ -615,7 +731,7 @@ CREATE TABLE IF NOT EXISTS inventory_items (
 CREATE INDEX IF NOT EXISTS idx_inventory_product ON inventory_items(product_id);
 SQL
 
-    cat > "${MODULE_ROOT}/crm/migrations/V3_1_0__Create_crm_schema[crm].sql" <<'SQL'
+    cat > "${MODULE_ROOT_HOST}/crm/migrations/V3_1_0__Create_crm_schema[crm].sql" <<'SQL'
 CREATE TABLE IF NOT EXISTS crm_contacts (
     id SERIAL PRIMARY KEY,
     customer_id INTEGER REFERENCES customers(id),
@@ -627,7 +743,7 @@ CREATE TABLE IF NOT EXISTS crm_contacts (
 );
 SQL
 
-    cat > "${MODULE_ROOT}/analytics/migrations/V3_2_0__Create_analytics_views[analytics].sql" <<'SQL'
+    cat > "${MODULE_ROOT_HOST}/analytics/migrations/V3_2_0__Create_analytics_views[analytics].sql" <<'SQL'
 CREATE VIEW IF NOT EXISTS analytics_orders_summary AS
 SELECT c.name AS customer_name,
        COUNT(o.id) AS total_orders,
@@ -637,8 +753,9 @@ LEFT JOIN orders o ON c.id = o.customer_id
 GROUP BY c.name;
 SQL
 
-    MULTI_CONFIG="${LOG_ROOT}/dblift-multi-module.yaml"
-    cat > "${MULTI_CONFIG}" <<EOF
+    MULTI_CONFIG_HOST="${LOG_ROOT}/dblift-multi-module.yaml"
+    MULTI_CONFIG_CONTAINER="./logs/scenario-${SCENARIO_ID}/dblift-multi-module.yaml"
+    cat > "${MULTI_CONFIG_HOST}" <<EOF
 database:
   url: "${DB_URL_DEFAULT}"
   schema: "${DB_SCHEMA}"
@@ -651,30 +768,39 @@ migrations:
     - "./migrations/features"
     - "./migrations/performance"
     - "./migrations/security"
-    - "./logs/scenario-${SCENARIO_ID}/modules/inventory/migrations"
-    - "./logs/scenario-${SCENARIO_ID}/modules/crm/migrations"
-    - "./logs/scenario-${SCENARIO_ID}/modules/analytics/migrations"
+    - "${MODULE_ROOT_CONTAINER}/inventory/migrations"
+    - "${MODULE_ROOT_CONTAINER}/crm/migrations"
+    - "${MODULE_ROOT_CONTAINER}/analytics/migrations"
   recursive: true
 
 logging:
   level: INFO
   log_format: "text"
-  log_dir: "./logs/scenario-${SCENARIO_ID}/modules/logs"
+  log_dir: "${MODULE_ROOT_CONTAINER}/logs"
 EOF
 
-    run_dblift "Deploy all modules" migrate --config "${MULTI_CONFIG}"
+    run_dblift "Deploy all modules" migrate --config "${MULTI_CONFIG_CONTAINER}"
+    DEPLOY_ALL_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🚀 Full multi-module deploy" "${DEPLOY_ALL_LOG}" 80
+
     run_dblift "Inventory module-only deploy" migrate \
-      --config "${MULTI_CONFIG}" \
+      --config "${MULTI_CONFIG_CONTAINER}" \
       --tags inventory
+    INVENTORY_ONLY_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🏷️ inventory-only deploy" "${INVENTORY_ONLY_LOG}" 40
 
     run_dblift "CRM module status" info \
-      --config "${MULTI_CONFIG}" \
+      --config "${MULTI_CONFIG_CONTAINER}" \
       --tags crm
+    CRM_STATUS_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "📋 CRM status" "${CRM_STATUS_LOG}" 60
 
     run_dblift "Validate inventory module migrations" validate-sql \
-      "${MODULE_ROOT}/inventory/migrations/" \
+      "${MODULE_ROOT_CONTAINER}/inventory/migrations/" \
       --dialect postgresql \
       --rules-file config/.dblift_rules.yaml
+    INVENTORY_VALIDATION_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "✅ Inventory module validation" "${INVENTORY_VALIDATION_LOG}" 60
 
     append_summary "- ✅ Multi-directory configuration generated on the fly."
     append_summary "- ✅ Module-specific deployments executed with tags."

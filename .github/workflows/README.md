@@ -67,3 +67,4 @@ To run manually:
 - ✅ All permissions configured correctly
 - ✅ Manual triggers available
 - ⏳ Waiting for Docker images to be published
+
