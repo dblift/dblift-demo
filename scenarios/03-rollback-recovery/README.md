@@ -130,5 +130,5 @@ This marks existing schema as version 1.0.0 without running migrations.
 - Safe recovery from errors
 
 ## Next Steps
-- Try [Scenario 04: Multi-Environment](../04-multi-environment/)
+- Try [Scenario 05: Drift Detection](../05-drift-detection/)
 

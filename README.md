@@ -111,7 +111,7 @@ See [INSTALL.md](INSTALL.md) for detailed instructions.
 - ✅ **Validation Rules** - Custom SQL validation with business rules
 - 🔄 **CI/CD Examples** - GitHub Actions workflows
 - 🗄️ **Multi-Database Support** - PostgreSQL, SQL Server, MySQL
-- 📚 **9 Demo Scenarios** - Step-by-step walkthroughs
+- 📚 **8 Demo Scenarios** - Step-by-step walkthroughs
 - ⚙️ **Configuration Examples** - Production-ready configs
 
 ## Demo Scenarios
@@ -121,7 +121,6 @@ See [INSTALL.md](INSTALL.md) for detailed instructions.
 | 01 | [Basic Migration](scenarios/01-basic-migration/) | Getting started | 10 min |
 | 02 | [Validation Rules](scenarios/02-validation-rules/) | SQL quality checks | 15 min |
 | 03 | [Rollback & Recovery](scenarios/03-rollback-recovery/) | Undo migrations | 15 min |
-| 04 | [Multi-Environment](scenarios/04-multi-environment/) | Dev/staging/prod | 20 min |
 | 05 | [Drift Detection](scenarios/05-drift-detection/) | Schema monitoring | 15 min |
 | 06 | [CI/CD Integration](scenarios/06-ci-cd-integration/) | Automation | 20 min |
 | 07 | [Tag-Based Deployment](scenarios/07-tag-based-deployment/) | Selective rollout | 15 min |
