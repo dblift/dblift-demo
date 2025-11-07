@@ -467,133 +467,6 @@ SQL
 
   "04")
     append_summary "## Step Summary"
-    append_summary "- Demonstrating multi-environment deployment (dev/staging/prod)."
-
-    wait_for_db "${DB_URL_DEFAULT}"
-
-    STAGING_CONTAINER="dblift-demo-staging-${GITHUB_RUN_ID:-$$}"
-    PROD_CONTAINER="dblift-demo-prod-${GITHUB_RUN_ID:-$$}"
-
-    docker rm -f "${STAGING_CONTAINER}" "${PROD_CONTAINER}" >/dev/null 2>&1 || true
-
-    run_command "Start staging database (port 5433)" docker run -d \
-      --name "${STAGING_CONTAINER}" \
-      -e POSTGRES_DB=dblift_staging \
-      -e POSTGRES_USER="${DB_USER}" \
-      -e POSTGRES_PASSWORD="${DB_PASSWORD}" \
-      -p 5433:5432 \
-      postgres:15-alpine
-
-    run_command "Start production database (port 5434)" docker run -d \
-      --name "${PROD_CONTAINER}" \
-      -e POSTGRES_DB=dblift_prod \
-      -e POSTGRES_USER="${DB_USER}" \
-      -e POSTGRES_PASSWORD="${DB_PASSWORD}" \
-      -p 5434:5432 \
-      postgres:15-alpine
-
-    trap 'docker rm -f "${STAGING_CONTAINER}" "${PROD_CONTAINER}" >/dev/null 2>&1 || true; on_error $? $LINENO' ERR
-
-    wait_for_db "jdbc:postgresql://127.0.0.1:5433/dblift_staging"
-    wait_for_db "jdbc:postgresql://127.0.0.1:5434/dblift_prod"
-
-    CONFIG_DIR="${LOG_ROOT}/configs"
-    mkdir -p "${CONFIG_DIR}"
-
-    DEV_CONFIG="${CONFIG_DIR}/dblift-dev.yaml"
-    cat > "${DEV_CONFIG}" <<EOF
-database:
-  url: "jdbc:postgresql://127.0.0.1:5432/dblift_demo"
-  schema: "${DB_SCHEMA}"
-  username: "${DB_USER}"
-  password: "${DB_PASSWORD}"
-
-migrations:
-  directory: "./migrations/core"
-  directories:
-    - "./migrations/features"
-  recursive: true
-
-logging:
-  level: DEBUG
-  log_format: "text"
-  log_dir: "./logs/dev"
-EOF
-
-    STAGING_CONFIG="${CONFIG_DIR}/dblift-staging.yaml"
-    cat > "${STAGING_CONFIG}" <<EOF
-database:
-  url: "jdbc:postgresql://127.0.0.1:5433/dblift_staging"
-  schema: "${DB_SCHEMA}"
-  username: "${DB_USER}"
-  password: "${DB_PASSWORD}"
-
-migrations:
-  directory: "./migrations/core"
-  directories:
-    - "./migrations/features"
-    - "./migrations/performance"
-  recursive: true
-
-validation:
-  enabled: true
-  fail_on_violations: true
-  rules_file: "config/.dblift_rules.yaml"
-
-logging:
-  level: INFO
-  log_format: "text,json"
-  log_dir: "./logs/staging"
-EOF
-
-    PROD_CONFIG="${CONFIG_DIR}/dblift-prod.yaml"
-    cat > "${PROD_CONFIG}" <<EOF
-database:
-  url: "jdbc:postgresql://127.0.0.1:5434/dblift_prod"
-  schema: "${DB_SCHEMA}"
-  username: "${DB_USER}"
-  password: "${DB_PASSWORD}"
-
-migrations:
-  directory: "./migrations/core"
-  directories:
-    - "./migrations/features"
-    - "./migrations/performance"
-    - "./migrations/security"
-  recursive: true
-
-validation:
-  enabled: true
-  fail_on_violations: true
-  severity_threshold: "error"
-  rules_file: "config/.dblift_rules.yaml"
-
-logging:
-  level: WARN
-  log_format: "json,html"
-  log_dir: "./logs/prod"
-EOF
-
-    run_dblift "Deploy to development" migrate --config "${DEV_CONFIG}"
-    run_dblift "Dev status" info --config "${DEV_CONFIG}"
-
-    run_dblift "Validate staging" validate --config "${STAGING_CONFIG}"
-    run_dblift "Deploy to staging" migrate --config "${STAGING_CONFIG}"
-    run_dblift "Staging drift check" diff --config "${STAGING_CONFIG}"
-
-    run_dblift "Production dry-run" migrate --config "${PROD_CONFIG}" --dry-run
-    run_dblift "Production deploy" migrate --config "${PROD_CONFIG}"
-    run_dblift "Production status" info --config "${PROD_CONFIG}"
-
-    append_summary "- ✅ Dev, staging, and prod configs generated dynamically."
-    append_summary "- ✅ Validated staging before deployment."
-    append_summary "- ✅ Production dry-run completed prior to live deploy."
-
-    docker rm -f "${STAGING_CONTAINER}" "${PROD_CONTAINER}" >/dev/null 2>&1 || true
-    ;;
-
-  "05")
-    append_summary "## Step Summary"
     append_summary "- Demonstrating schema drift detection workflow."
     wait_for_db
     run_dblift "Apply migrations" migrate --config config/dblift-postgresql.yaml
@@ -618,7 +491,7 @@ EOF
     append_summary "- ✅ Drift detected and reports produced for review."
     ;;
 
-  "06")
+  "05")
     append_summary "## Step Summary"
     append_summary "- Highlighting CI/CD integration pieces."
     append_summary ""
@@ -638,7 +511,7 @@ EOF
     append_summary "- ✅ SARIF validation report generated for code scanning integration."
     ;;
 
-  "07")
+  "06")
     append_summary "## Step Summary"
     append_summary "- Performing selective deployments using tags."
     wait_for_db
@@ -667,7 +540,7 @@ EOF
     append_summary "- ✅ Tag-filtered status inspection completed."
     ;;
 
-  "08")
+  "07")
     append_summary "## Step Summary"
     append_summary "- Simulating brownfield adoption with baseline and new changes."
     wait_for_db
@@ -721,7 +594,7 @@ SQL
     append_summary "- ✅ New migrations applied on top of baseline safely."
     ;;
 
-  "09")
+  "08")
     append_summary "## Step Summary"
     append_summary "- Managing multi-module migrations with directory orchestration."
     wait_for_db

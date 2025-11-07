@@ -1,4 +1,4 @@
-name: Scenario 04 - Multi-Environment
+name: Scenario 04 - Drift Detection
 
 on:
   workflow_dispatch:
@@ -8,5 +8,5 @@ jobs:
     uses: ./.github/workflows/scenario-runner.yml
     with:
       scenario-id: "04"
-      scenario-name: "Multi-Environment"
+      scenario-name: "Drift Detection"
 

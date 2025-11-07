@@ -341,5 +341,5 @@ repos:
 
 ---
 
-**Questions?** Open an issue or check the [scenarios guide](../scenarios/06-ci-cd-integration/).
+**Questions?** Open an issue or check the [scenarios guide](../scenarios/05-ci-cd-integration/).
 

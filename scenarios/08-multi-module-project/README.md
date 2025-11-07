@@ -1,4 +1,4 @@
-# Scenario 09: Multi-Module Project
+# Scenario 08: Multi-Module Project
 
 ## Objective
 Manage migrations across multiple modules in a monorepo or large project.

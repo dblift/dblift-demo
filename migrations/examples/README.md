@@ -62,5 +62,5 @@ This directory contains example migrations that demonstrate the PR validation wo
 
 - [CI/CD Validation Demo Guide](../../docs/CI_CD_VALIDATION_DEMO.md)
 - [Validation Rules](../../config/.dblift_rules.yaml)
-- [Scenario 06: CI/CD Integration](../../scenarios/06-ci-cd-integration/)
+- [Scenario 05: CI/CD Integration](../../scenarios/05-ci-cd-integration/)
 

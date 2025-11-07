@@ -1,4 +1,4 @@
-name: Scenario 07 - Tag-Based Deployment
+name: Scenario 06 - Tag-Based Deployment
 
 on:
   workflow_dispatch:
@@ -7,6 +7,6 @@ jobs:
   run:
     uses: ./.github/workflows/scenario-runner.yml
     with:
-      scenario-id: "07"
+      scenario-id: "06"
       scenario-name: "Tag-Based Deployment"
 

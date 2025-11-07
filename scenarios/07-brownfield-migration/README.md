@@ -1,4 +1,4 @@
-# Scenario 08: Brownfield Migration
+# Scenario 07: Brownfield Migration
 
 ## Objective
 Adopt DBLift for an existing database that wasn't created with migrations.
@@ -353,5 +353,5 @@ Ongoing migration management
 - [ ] Update team documentation
 
 ## Next Steps
-- Try [Scenario 09: Multi-Module Project](../09-multi-module-project/)
+- Try [Scenario 08: Multi-Module Project](../08-multi-module-project/)
 

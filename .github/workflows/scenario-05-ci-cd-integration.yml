@@ -1,4 +1,4 @@
-name: Scenario 05 - Drift Detection
+name: Scenario 05 - CI/CD Integration
 
 on:
   workflow_dispatch:
@@ -8,5 +8,5 @@ jobs:
     uses: ./.github/workflows/scenario-runner.yml
     with:
       scenario-id: "05"
-      scenario-name: "Drift Detection"
+      scenario-name: "CI/CD Integration"
 
