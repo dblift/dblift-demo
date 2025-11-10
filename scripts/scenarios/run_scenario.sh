@@ -483,8 +483,6 @@ SQL
     fi
 
     run_dblift "Repair schema history" repair --config config/dblift-postgresql.yaml
-    psql_exec "Reset checksum to expected value" \
-      "UPDATE dblift_schema_history SET checksum = file_checksum WHERE version = '1.0.3';"
     run_dblift "Re-validate after repair" validate --config config/dblift-postgresql.yaml
     append_summary "- ✅ Undo sequence completed with `dblift undo --target-version 1.0.3`."
     append_summary "- ✅ Corruption detected and automatically repaired."
@@ -508,13 +506,21 @@ SQL
     reset_database "Reset schema for drift detection"
 
     run_dblift "Apply migrations" migrate --config config/dblift-postgresql.yaml
-    run_dblift "Initial drift check (expected clean)" diff --config config/dblift-postgresql.yaml
+
+    DIFF_COMMON_ARGS=(
+      "--config" "config/dblift-postgresql.yaml"
+      "--migration-path" "./migrations/core"
+      "--scripts" "./migrations/features"
+      "--scripts" "./migrations/performance"
+    )
+
+    run_dblift "Initial drift check (expected clean)" diff "${DIFF_COMMON_ARGS[@]}"
     CLEAN_DIFF_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "✅ Drift check (clean baseline)" "${CLEAN_DIFF_LOG}" 80
 
     psql_file "Simulate drift changes" scripts/simulate-drift.sql
 
-    if ! run_dblift "Detect drift after manual changes" diff --config config/dblift-postgresql.yaml; then
+    if ! run_dblift "Detect drift after manual changes" diff "${DIFF_COMMON_ARGS[@]}"; then
       append_summary "- ⚠️ Drift detected after manual schema changes."
     fi
     DRIFT_DIFF_LOG="${LAST_LOG_PATH}"
@@ -525,7 +531,7 @@ SQL
     mkdir -p "${REPORT_DIR_HOST}"
 
     if ! run_dblift "Generate HTML drift report" diff \
-      --config config/dblift-postgresql.yaml \
+      "${DIFF_COMMON_ARGS[@]}" \
       --log-format html \
       --log-dir "${REPORT_DIR_CONTAINER}"; then
       append_summary "- ℹ️ HTML drift report generated with drift differences (expected)."
@@ -535,7 +541,7 @@ SQL
     DRIFT_JSON_CONTAINER="./logs/scenario-${SCENARIO_ID}/drift-report.json"
 
     if ! run_dblift "Generate JSON drift report" diff \
-      --config config/dblift-postgresql.yaml \
+      "${DIFF_COMMON_ARGS[@]}" \
       --format json \
       --output "${DRIFT_JSON_CONTAINER}"; then
       append_summary "- ℹ️ JSON drift report generated with drift differences (expected)."
