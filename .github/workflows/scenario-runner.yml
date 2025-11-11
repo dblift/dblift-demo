@@ -36,12 +36,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Patch DBLift config for CI
-        run: |
-          perl -0pi -e 's#directory: "\./migrations/core"#directory: "./migrations"#' config/dblift-postgresql.yaml
-          perl -0pi -e 's#\n\s+directories:\n(?:\s+- .*\n)+##m' config/dblift-postgresql.yaml
-          perl -0pi -e 's#\n\s+undo_directories:\n(?:\s+- .*\n)+##m' config/dblift-postgresql.yaml
-          perl -0pi -e 's#\n{3,}#\n\n#g' config/dblift-postgresql.yaml
+      - name: Prepare DBLift config
+        run: cp config/dblift-postgresql.yaml config/dblift-postgresql-ci.yaml
 
       - name: Ensure scripts are executable
         run: chmod +x scripts/scenarios/run_scenario.sh
@@ -50,6 +46,7 @@ jobs:
         env:
           SCENARIO_ID: ${{ inputs.scenario-id }}
           SCENARIO_NAME: ${{ inputs.scenario-name }}
+          SCENARIO_DB_CONFIG: config/dblift-postgresql-ci.yaml
         run: |
           scripts/scenarios/run_scenario.sh "${SCENARIO_ID}" "${SCENARIO_NAME}"
 

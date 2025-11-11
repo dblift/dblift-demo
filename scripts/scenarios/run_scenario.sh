@@ -31,6 +31,7 @@ DB_USER="${DB_USER:-dblift_user}"
 DB_PASSWORD="${DB_PASSWORD:-dblift_pass}"
 DB_SCHEMA="${DB_SCHEMA:-public}"
 DB_URL_DEFAULT="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}"
+CONFIG_PATH="${SCENARIO_DB_CONFIG:-config/dblift-postgresql.yaml}"
 
 SCENARIO_TITLE="Scenario ${SCENARIO_ID}"
 if [[ -n "${SCENARIO_NAME}" ]]; then
@@ -348,11 +349,11 @@ case "${SCENARIO_ID}" in
 
     wait_for_db
     capture_migration_state "Schema history before running migrations" "before-migrate"
-    run_dblift "Check database status (before)" info --config config/dblift-postgresql.yaml
+    run_dblift "Check database status (before)" info --config "${CONFIG_PATH}"
     BEFORE_INFO_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "📋 Database status (before migrations)" "${BEFORE_INFO_LOG}" 80
-    run_dblift "Run migrations" migrate --config config/dblift-postgresql.yaml --log-format text --log-dir logs
-    run_dblift "Check database status (after)" info --config config/dblift-postgresql.yaml
+    run_dblift "Run migrations" migrate --config "${CONFIG_PATH}" --log-format text --log-dir logs
+    run_dblift "Check database status (after)" info --config "${CONFIG_PATH}"
     AFTER_INFO_LOG="${LAST_LOG_PATH}"
     capture_migration_state "Schema history after running migrations" "after-migrate"
     compare_history_snapshots "before-migrate" "after-migrate"
@@ -461,29 +462,29 @@ SQL
     wait_for_db
     reset_database "Reset schema for rollback scenario"
 
-    run_dblift "Apply migrations through current version" migrate --config config/dblift-postgresql.yaml
-    run_dblift "Confirm schema status (before rollback)" info --config config/dblift-postgresql.yaml
+    run_dblift "Apply migrations through current version" migrate --config "${CONFIG_PATH}"
+    run_dblift "Confirm schema status (before rollback)" info --config "${CONFIG_PATH}"
     BEFORE_ROLLBACK_INFO="${LAST_LOG_PATH}"
     show_log_excerpt "📋 Schema history before rollback" "${BEFORE_ROLLBACK_INFO}" 120
 
     run_dblift "Rollback to version 1.0.3" undo \
-      --config config/dblift-postgresql.yaml \
+      --config "${CONFIG_PATH}" \
       --target-version 1.0.3
-    run_dblift "Inspect schema history after rollback" info --config config/dblift-postgresql.yaml
+    run_dblift "Inspect schema history after rollback" info --config "${CONFIG_PATH}"
     AFTER_ROLLBACK_INFO="${LAST_LOG_PATH}"
     show_log_excerpt "📋 Schema history after rollback" "${AFTER_ROLLBACK_INFO}" 120
 
-    run_dblift "Reapply migrations to latest" migrate --config config/dblift-postgresql.yaml
+    run_dblift "Reapply migrations to latest" migrate --config "${CONFIG_PATH}"
 
     psql_exec "Simulate checksum corruption" \
       "UPDATE dblift_schema_history SET checksum = 'corrupted' WHERE version = '1.0.3';"
 
-    if ! run_dblift "Detect corruption via validation" validate --config config/dblift-postgresql.yaml; then
+    if ! run_dblift "Detect corruption via validation" validate --config "${CONFIG_PATH}"; then
       append_summary "- ⚠️ Detected checksum mismatch after manual corruption."
     fi
 
-    run_dblift "Repair schema history" repair --config config/dblift-postgresql.yaml
-    run_dblift "Re-validate after repair" validate --config config/dblift-postgresql.yaml
+    run_dblift "Repair schema history" repair --config "${CONFIG_PATH}"
+    run_dblift "Re-validate after repair" validate --config "${CONFIG_PATH}"
     append_summary "- ✅ Undo sequence completed with `dblift undo --target-version 1.0.3`."
     append_summary "- ✅ Corruption detected and automatically repaired."
     append_summary "- ✅ Final validation confirms schema integrity."
@@ -505,10 +506,10 @@ SQL
     wait_for_db
     reset_database "Reset schema for drift detection"
 
-    run_dblift "Apply migrations" migrate --config config/dblift-postgresql.yaml
+    run_dblift "Apply migrations" migrate --config "${CONFIG_PATH}"
 
     DIFF_COMMON_ARGS=(
-      "--config" "config/dblift-postgresql.yaml"
+      "--config" "${CONFIG_PATH}"
       "--migration-path" "./migrations/core"
       "--scripts" "./migrations/features"
       "--scripts" "./migrations/performance"
@@ -603,31 +604,31 @@ SQL
     reset_database "Reset schema for tag deployment demo"
 
     run_dblift "Apply core schema (exclude feature tags)" migrate \
-      --config config/dblift-postgresql.yaml \
+      --config "${CONFIG_PATH}" \
       --exclude-tags user-mgmt,notifications,analytics,security
     CORE_ONLY_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🚀 Core deployment (tags excluded)" "${CORE_ONLY_LOG}" 80
 
     run_dblift "Deploy user management features (tags=user-mgmt)" migrate \
-      --config config/dblift-postgresql.yaml \
+      --config "${CONFIG_PATH}" \
       --tags user-mgmt
     USER_MGMT_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🏷️ user-mgmt rollout" "${USER_MGMT_LOG}" 40
 
     run_dblift "Deploy notifications (tags=notifications)" migrate \
-      --config config/dblift-postgresql.yaml \
+      --config "${CONFIG_PATH}" \
       --tags notifications
     NOTIFICATIONS_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🏷️ notifications rollout" "${NOTIFICATIONS_LOG}" 40
 
     run_dblift "Check security tag status" info \
-      --config config/dblift-postgresql.yaml \
+      --config "${CONFIG_PATH}" \
       --tags security
     SECURITY_STATUS_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🔐 security tag status" "${SECURITY_STATUS_LOG}" 60
 
     run_dblift "Deploy everything except analytics" migrate \
-      --config config/dblift-postgresql.yaml \
+      --config "${CONFIG_PATH}" \
       --exclude-tags analytics
     EXCEPT_ANALYTICS_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🚫 analytics excluded rollout" "${EXCEPT_ANALYTICS_LOG}" 60
@@ -845,14 +846,14 @@ EOF
        );
        COMMENT ON TABLE legacy_audit_log IS 'Manually created to simulate brownfield drift';"
 
-    run_dblift "Apply migrations (managed objects)" migrate --config config/dblift-postgresql.yaml
+    run_dblift "Apply migrations (managed objects)" migrate --config "${CONFIG_PATH}"
 
     EXPORT_DIR_HOST="${LOG_ROOT}/exports"
     EXPORT_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/exports"
     mkdir -p "${EXPORT_DIR_HOST}"
 
     run_dblift "Export managed schema (ignore unmanaged)" export \
-      --config config/dblift-postgresql.yaml \
+      --config "${CONFIG_PATH}" \
       --ignore-unmanaged \
       --output "${EXPORT_DIR_CONTAINER}/managed.sql"
     MANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
@@ -860,7 +861,7 @@ EOF
     run_command "Preview managed export (first 40 lines)" head -n 40 "${EXPORT_DIR_HOST}/managed.sql"
 
     run_dblift "Export unmanaged schema only" export \
-      --config config/dblift-postgresql.yaml \
+      --config "${CONFIG_PATH}" \
       --only-unmanaged \
       --output "${EXPORT_DIR_CONTAINER}/unmanaged.sql"
     UNMANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
