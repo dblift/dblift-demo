@@ -9,13 +9,7 @@ database:
   password: "dblift_pass"
 
 migrations:
-  directory: "./migrations/core"
-  directories:
-    - "./migrations/features"
-    - "./migrations/performance"
-  undo_directories:
-    - "./migrations/features"
-    - "./migrations/performance"
+  directory: "./migrations"
   recursive: true
   script_encoding: "utf-8"
 

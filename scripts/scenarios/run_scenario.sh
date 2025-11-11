@@ -557,20 +557,13 @@ SQL
 
     run_dblift "Apply migrations" migrate --config "${CONFIG_PATH}"
 
-    DIFF_COMMON_ARGS=(
-      "--config" "${CONFIG_PATH}"
-      "--migration-path" "./migrations/core"
-      "--scripts" "./migrations/features"
-      "--scripts" "./migrations/performance"
-    )
-
-    run_dblift "Initial drift check (expected clean)" diff "${DIFF_COMMON_ARGS[@]}"
+    run_dblift "Initial drift check (expected clean)" diff --config "${CONFIG_PATH}"
     CLEAN_DIFF_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "✅ Drift check (clean baseline)" "${CLEAN_DIFF_LOG}" 80
 
     psql_file "Simulate drift changes" scripts/simulate-drift.sql
 
-    if ! run_dblift "Detect drift after manual changes" diff "${DIFF_COMMON_ARGS[@]}"; then
+    if ! run_dblift "Detect drift after manual changes" diff --config "${CONFIG_PATH}"; then
       append_summary "- ⚠️ Drift detected after manual schema changes."
     fi
     DRIFT_DIFF_LOG="${LAST_LOG_PATH}"
@@ -581,7 +574,7 @@ SQL
     mkdir -p "${REPORT_DIR_HOST}"
 
     if ! run_dblift "Generate HTML drift report" diff \
-      "${DIFF_COMMON_ARGS[@]}" \
+      --config "${CONFIG_PATH}" \
       --log-format html \
       --log-dir "${REPORT_DIR_CONTAINER}"; then
       append_summary "- ℹ️ HTML drift report generated with drift differences (expected)."
@@ -591,7 +584,7 @@ SQL
     DRIFT_JSON_CONTAINER="./logs/scenario-${SCENARIO_ID}/drift-report.json"
 
     if ! run_dblift "Generate JSON drift report" diff \
-      "${DIFF_COMMON_ARGS[@]}" \
+      --config "${CONFIG_PATH}" \
       --format json \
       --output "${DRIFT_JSON_CONTAINER}"; then
       append_summary "- ℹ️ JSON drift report generated with drift differences (expected)."
