@@ -1,134 +1,85 @@
 # Scenario 04: Checksum Repair
 
 ## Objective
-Demonstrate undo migrations and repair functionality.
+Detect a checksum mismatch in the schema history table and repair it with DBLift.
 
 ## Prerequisites
 - DBLift installed
 - Database running
-- Migrations applied through V1_0_3
+- Access to the demo migrations
 
 ## Steps
 
-### 1. Check Current State
+### 1. Reset and Apply Migrations
 
 ```bash
-dblift info --config config/dblift-postgresql.yaml
-```
-
-You should see migrations V1_0_0 through V1_0_3 applied.
-
-### 2. Review Undo Migration
-
-Check the undo migration file:
-```bash
-cat migrations/core/U1_0_3__Remove_orders.sql
-```
-
-This migration will roll back the orders tables created in V1_0_3.
-
-### 3. Roll Back to Version 1.0.3
-
-```bash
-dblift undo \
+dblift clean \
   --config config/dblift-postgresql.yaml \
-  --target-version 1.0.3
+  --drop-schema
+
+dblift migrate \
+  --config config/dblift-postgresql.yaml \
+  --exclude-tags security
 ```
 
-**What happens:**
-- Executes `U1_0_3__Remove_orders.sql`
-- Drops order_items and orders tables
-- Updates schema history
-- Logs rollback operation
+This applies the baseline through version **1.3.0** (security-tagged migrations are excluded to keep the demo quick).
 
-### 4. Verify Rollback
+### 2. Capture Current History
 
 ```bash
 dblift info --config config/dblift-postgresql.yaml
 ```
 
-Current version should now be 1.0.3.
+Confirm the checksum stored for version `1.0.3`.
 
-### 5. Re-apply Migrations
+### 3. Simulate Corruption
 
-```bash
-dblift migrate --config config/dblift-postgresql.yaml
-```
+Open a psql session to the demo database:
 
-This replays the feature/performance migrations you just undid.
-
-### 6. Simulate Corruption (For Demo)
-
-Connect to database and manually corrupt history:
 ```bash
 docker exec -it dblift-demo-postgres psql -U dblift_user -d dblift_demo
 ```
 
-```sql
--- Simulate corruption
-UPDATE dblift_schema_history 
-SET checksum = 'corrupted' 
-WHERE version = '1.0.3';
+Run:
 
-\q
+```sql
+UPDATE dblift_schema_history
+SET checksum = 'corrupted'
+WHERE version = '1.0.3';
 ```
 
-### 7. Detect Corruption
+Exit with `\q`.
+
+### 4. Detect Corruption
 
 ```bash
 dblift validate --config config/dblift-postgresql.yaml
 ```
 
-**Expected Output:**
-```
-❌ Checksum mismatch detected for migration V1_0_3__Add_orders.sql
-Expected: <actual_checksum>
-Found: corrupted
-```
+You should see a checksum mismatch reported for `V1_0_3__Add_orders.sql`.
 
-### 8. Repair History Table
+### 5. Repair the History Table
 
 ```bash
 dblift repair --config config/dblift-postgresql.yaml
 ```
 
-**What happens:**
-- Recalculates checksums for all applied migrations
-- Updates history table with correct values
-- Validates integrity
+DBLift recalculates checksums for all applied migrations and updates the history table.
 
-### 9. Verify Repair
+### 6. Validate Again
 
 ```bash
 dblift validate --config config/dblift-postgresql.yaml
 ```
 
-**Expected Output:**
-```
-✅ All migrations validated successfully
-```
-
-## Advanced: Repair with Baseline
-
-If you have an existing database without migration history:
-
-```bash
-dblift baseline \
-  --config config/dblift-postgresql.yaml \
-  --baseline-version 1.0.0 \
-  --baseline-description "Initial baseline"
-```
-
-This marks existing schema as version 1.0.0 without running migrations.
+The checksum warning disappears and validation succeeds.
 
 ## Key Takeaways
-- Undo migrations provide controlled rollback
-- Always create undo migrations for destructive changes
-- Repair command fixes history corruption
-- Baseline supports brownfield databases
-- Full audit trail maintained
-- Safe recovery from errors
+- `dblift validate` compares filesystem and database checksums to detect tampering.
+- Manual edits to `dblift_schema_history` are caught immediately.
+- `dblift repair` recomputes checksums and restores integrity.
+- Schema history queries provide an auditable trail before and after repair.
 
 ## Next Steps
-- Try [Scenario 05: Drift Detection](../05-drift-detection/)
+- Continue to [Scenario 05: Drift Detection](../05-drift-detection/)
 

@@ -500,48 +500,43 @@ SQL
   "04")
     append_summary "## Overview"
     append_summary "- **Goal**: Demonstrate checksum corruption detection and repair."
-    append_summary "- **Focus**: Undo feature migrations, simulate history tampering, and heal the schema history table."
-    append_summary "- **Key Outputs**: Schema history snapshots plus validation/repair logs."
+    append_summary "- **Focus**: Apply migrations, tamper with schema history, validate the failure, then heal it with `dblift repair`."
+    append_summary "- **Key Outputs**: Validation failure/success logs plus schema history snapshots."
     append_summary ""
     append_summary "## Execution Plan"
-    append_summary "- 🔁 Reset schema and apply migrations (excluding security) to get to version 1.3.0."
-    append_summary "- ⏪ Roll back to 1.0.3 using undo scripts and capture history."
-    append_summary "- ▶️ Reapply migrations to latest and manually corrupt the checksum."
+    append_summary "- 🔁 Reset schema and apply migrations (excluding security) to reach version 1.3.0."
+    append_summary "- 🧪 Manually corrupt the checksum for version 1.0.3."
+    append_summary "- 🚨 Run `dblift validate` to surface the checksum mismatch."
+    append_summary "- 🩺 Execute `dblift repair` and validate again to confirm recovery."
     append_summary ""
 
     wait_for_db
     reset_database "Reset schema for checksum repair demo"
 
-    run_dblift "Apply migrations through current version" migrate \
-      --config "${CONFIG_PATH}" \
-      --exclude-tags security
-    run_dblift "Confirm schema status (before rollback)" info --config "${CONFIG_PATH}"
-    BEFORE_ROLLBACK_INFO="${LAST_LOG_PATH}"
-    show_log_excerpt "📋 Schema history before rollback" "${BEFORE_ROLLBACK_INFO}" 120
+    MIGRATE_CHECKSUM_ARGS=(
+      "--config" "${CONFIG_PATH}"
+      "--exclude-tags" "security"
+    )
 
-    run_dblift "Rollback to version 1.0.3" undo \
-      --config "${CONFIG_PATH}" \
-      --target-version 1.0.3
-    run_dblift "Inspect schema history after rollback" info --config "${CONFIG_PATH}"
-    AFTER_ROLLBACK_INFO="${LAST_LOG_PATH}"
-    show_log_excerpt "📋 Schema history after rollback" "${AFTER_ROLLBACK_INFO}" 120
-
-    run_dblift "Reapply migrations to latest" migrate \
-      --config "${CONFIG_PATH}" \
-      --exclude-tags security
+    run_dblift "Apply migrations for checksum demo" migrate "${MIGRATE_CHECKSUM_ARGS[@]}"
+    run_dblift "Show schema history (after migrate)" info --config "${CONFIG_PATH}"
+    show_log_excerpt "📋 Schema history after migrate" "${LAST_LOG_PATH}" 80
 
     psql_exec "Simulate checksum corruption" \
       "UPDATE dblift_schema_history SET checksum = 'corrupted' WHERE version = '1.0.3';"
 
-    if ! run_dblift "Detect corruption via validation" validate --config "${CONFIG_PATH}"; then
-      append_summary "- ⚠️ Detected checksum mismatch after manual corruption."
+    if ! run_dblift "Validate after corruption (expected failure)" validate --config "${CONFIG_PATH}"; then
+      append_summary "- ⚠️ Checksum mismatch surfaced via `dblift validate`."
     fi
+    show_log_excerpt "🚨 Validation (checksum mismatch)" "${LAST_LOG_PATH}" 120
 
     run_dblift "Repair schema history" repair --config "${CONFIG_PATH}"
-    run_dblift "Re-validate after repair" validate --config "${CONFIG_PATH}"
-    append_summary "- ✅ Rollback + reapply sequence completed."
-    append_summary "- ✅ Corruption surfaced via `dblift validate`."
-    append_summary "- ✅ `dblift repair` recalculated the checksum and validation now passes."
+    show_log_excerpt "🛠️ Repair output" "${LAST_LOG_PATH}" 80
+
+    run_dblift "Validate after repair" validate --config "${CONFIG_PATH}"
+    show_log_excerpt "✅ Validation (after repair)" "${LAST_LOG_PATH}" 120
+    append_summary "- ✅ Corruption detected and reported by `dblift validate`."
+    append_summary "- ✅ `dblift repair` recalculated checksums and validation now passes."
     ;;
 
   "05")
