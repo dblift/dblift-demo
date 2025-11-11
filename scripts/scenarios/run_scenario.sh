@@ -469,20 +469,28 @@ SQL
     )
 
     run_dblift "Apply migrations for undo demo" migrate "${MIGRATE_BASE_ARGS[@]}"
+    run_dblift "Show schema history (after apply)" info --config "${CONFIG_PATH}"
+    show_log_excerpt "📋 Schema history after apply" "${LAST_LOG_PATH}" 80
 
     run_dblift "Undo newest migration" undo \
       --config "${CONFIG_PATH}"
     run_dblift "Reapply latest migration" migrate "${MIGRATE_BASE_ARGS[@]}"
+    run_dblift "Show schema history after reapply" info --config "${CONFIG_PATH}"
+    show_log_excerpt "📋 Schema history after newest undo/reapply" "${LAST_LOG_PATH}" 80
 
     run_dblift "Undo back to version 1.0.2" undo \
       --config "${CONFIG_PATH}" \
       --target-version 1.0.2
     run_dblift "Migrate forward after target undo" migrate "${MIGRATE_BASE_ARGS[@]}"
+    run_dblift "Show schema history after target undo/reapply" info --config "${CONFIG_PATH}"
+    show_log_excerpt "📋 Schema history after target undo" "${LAST_LOG_PATH}" 80
 
     run_dblift "Undo specific version 1.1.0" undo \
       --config "${CONFIG_PATH}" \
       --versions 1.1.0
     run_dblift "Reapply version 1.1.0 and dependents" migrate "${MIGRATE_BASE_ARGS[@]}"
+    run_dblift "Show schema history after version-specific undo" info --config "${CONFIG_PATH}"
+    show_log_excerpt "📋 Schema history after version-specific undo/reapply" "${LAST_LOG_PATH}" 80
 
     append_summary "- ✅ `dblift undo` (no extra flags) rolls back the most recent migration."
     append_summary "- ✅ `dblift undo --target-version` safely rewinds multiple migrations."
