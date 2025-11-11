@@ -43,6 +43,7 @@ jobs:
         env:
           SCENARIO_ID: ${{ inputs.scenario-id }}
           SCENARIO_NAME: ${{ inputs.scenario-name }}
+          SCENARIO_DB_CONFIG: config/dblift-postgresql-recursive.yaml
         run: |
           scripts/scenarios/run_scenario.sh "${SCENARIO_ID}" "${SCENARIO_NAME}"
 
