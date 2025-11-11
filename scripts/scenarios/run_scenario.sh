@@ -555,20 +555,22 @@ SQL
     wait_for_db
     reset_database "Reset schema for drift detection"
 
-    DRIFT_ARGS=(
+    run_dblift "Apply migrations" migrate --config "${CONFIG_PATH}"
+
+    DIFF_COMMON_ARGS=(
       "--config" "${CONFIG_PATH}"
-      "--exclude-tags" "security"
+      "--migration-path" "./migrations/core"
+      "--scripts" "./migrations/features"
+      "--scripts" "./migrations/performance"
     )
 
-    run_dblift "Apply migrations for drift demo" migrate "${DRIFT_ARGS[@]}"
-
-    run_dblift "Initial drift check (expected clean)" diff "${DRIFT_ARGS[@]}"
+    run_dblift "Initial drift check (expected clean)" diff "${DIFF_COMMON_ARGS[@]}"
     CLEAN_DIFF_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "✅ Drift check (clean baseline)" "${CLEAN_DIFF_LOG}" 80
 
     psql_file "Simulate drift changes" scripts/simulate-drift.sql
 
-    if ! run_dblift "Detect drift after manual changes" diff "${DRIFT_ARGS[@]}"; then
+    if ! run_dblift "Detect drift after manual changes" diff "${DIFF_COMMON_ARGS[@]}"; then
       append_summary "- ⚠️ Drift detected after manual schema changes."
     fi
     DRIFT_DIFF_LOG="${LAST_LOG_PATH}"
@@ -579,7 +581,7 @@ SQL
     mkdir -p "${REPORT_DIR_HOST}"
 
     if ! run_dblift "Generate HTML drift report" diff \
-      "${DRIFT_ARGS[@]}" \
+      "${DIFF_COMMON_ARGS[@]}" \
       --log-format html \
       --log-dir "${REPORT_DIR_CONTAINER}"; then
       append_summary "- ℹ️ HTML drift report generated with drift differences (expected)."
@@ -589,7 +591,7 @@ SQL
     DRIFT_JSON_CONTAINER="./logs/scenario-${SCENARIO_ID}/drift-report.json"
 
     if ! run_dblift "Generate JSON drift report" diff \
-      "${DRIFT_ARGS[@]}" \
+      "${DIFF_COMMON_ARGS[@]}" \
       --format json \
       --output "${DRIFT_JSON_CONTAINER}"; then
       append_summary "- ℹ️ JSON drift report generated with drift differences (expected)."
@@ -613,21 +615,25 @@ SQL
     append_summary ""
 
     run_command "List available workflows" ls -1 .github/workflows
-    show_log_excerpt "🗂️ Available workflows" "${LAST_LOG_PATH}" 40
-
     run_command "Show SQL validation workflow" cat .github/workflows/validate-sql.yml
-    show_log_excerpt "🧾 validate-sql workflow (excerpt)" "${LAST_LOG_PATH}" 60
 
+    SARIF_DIR_HOST="${LOG_ROOT}/sarif"
+    SARIF_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/sarif"
+    mkdir -p "${SARIF_DIR_HOST}"
     run_dblift "Generate SARIF validation report" validate-sql migrations/ \
       --dialect postgresql \
       --rules-file config/.dblift_rules.yaml \
-      --format sarif
+      --log-format sarif \
+      --log-dir "${SARIF_DIR_CONTAINER}"
 
-    SARIF_LOG_PATH="${LAST_LOG_PATH}"
-    run_command "Preview SARIF report headers" head -n 40 "${SARIF_LOG_PATH}"
-    show_log_excerpt "🪪 SARIF header preview" "${LAST_LOG_PATH}" 60
-    append_summary "- ✅ Workflow inventory and sample YAML surfaced above."
-    append_summary "- ✅ SARIF output captured via \`validate-sql\`; header preview included from \`${SARIF_LOG_PATH}\`."
+    SARIF_GENERATED_FILE="$(find "${SARIF_DIR_HOST}" -maxdepth 1 -name '*.sarif' | head -n 1 || true)"
+    if [[ -n "${SARIF_GENERATED_FILE}" ]]; then
+      run_command "Preview SARIF report headers" head -n 40 "${SARIF_GENERATED_FILE}"
+      append_summary "- ✅ Workflow inventory and sample YAML surfaced above."
+      append_summary "- ✅ SARIF report generated via `validate-sql`; header preview included."
+    else
+      append_summary "- ⚠️ Expected SARIF output not found under ${SARIF_DIR_HOST}."
+    fi
     ;;
 
   "07")
