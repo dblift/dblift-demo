@@ -56,17 +56,21 @@ jobs:
 
       - name: Generate SARIF report with DBLift
         if: steps.changed-files.outputs.any_changed == 'true'
+        id: sarif
+        shell: bash
         continue-on-error: true
         run: |
           echo "Generating SARIF report..."
           docker run --rm \
-            -v $(pwd)/migrations:/workspace/migrations \
-            -v $(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml \
+            -v "$(pwd)/migrations:/workspace/migrations" \
+            -v "$(pwd)/examples/migrations:/workspace/examples/migrations" \
+            -v "$(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml" \
             ghcr.io/dblift/dblift:validation-latest \
             migrations/ \
             --dialect postgresql \
             --rules-file .dblift_rules.yaml \
-            --format sarif > validation-results.sarif || echo "SARIF generation completed"
+            --format sarif > validation-results.sarif
+          echo "sarif_path=validation-results.sarif" >> "$GITHUB_OUTPUT"
 
       - name: Upload SARIF to GitHub Security
         if: steps.changed-files.outputs.any_changed == 'true'
@@ -82,10 +86,30 @@ jobs:
         with:
           script: |
             const fs = require('fs');
+            const core = require('@actions/core');
             
-            // Read SARIF results
-            const sarif = JSON.parse(fs.readFileSync('validation-results.sarif', 'utf8'));
-            const results = sarif.runs[0].results || [];
+            let sarifRaw;
+            try {
+              sarifRaw = fs.readFileSync('validation-results.sarif', 'utf8').trim();
+            } catch (err) {
+              core.warning(`SARIF file not found: ${err.message}`);
+              return;
+            }
+            
+            if (!sarifRaw) {
+              core.warning('SARIF file is empty; skipping PR comment.');
+              return;
+            }
+            
+            let sarif;
+            try {
+              sarif = JSON.parse(sarifRaw);
+            } catch (err) {
+              core.warning(`Failed to parse SARIF JSON: ${err.message}`);
+              return;
+            }
+            
+            const results = sarif.runs?.[0]?.results || [];
             
             const errors = results.filter(r => r.level === 'error').length;
             const warnings = results.filter(r => r.level === 'warning').length;
