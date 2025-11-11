@@ -45,30 +45,72 @@ jobs:
         continue-on-error: true
         run: |
           echo "Validating SQL migrations with DBLift..."
+          mapfile -t FILES < <(echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | sed '/^$/d')
+          if [[ ${#FILES[@]} -eq 0 ]]; then
+            echo "No SQL files to validate."
+            exit 0
+          fi
+
+          ARGS=()
+          for file in "${FILES[@]}"; do
+            ARGS+=("/workspace/${file}")
+          done
+
+          echo "Files passed to validator:"
+          printf ' - %s\n' "${FILES[@]}"
+
           docker run --rm \
-            -v $(pwd)/migrations:/workspace/migrations \
-            -v $(pwd)/examples/migrations:/workspace/examples/migrations \
-            -v $(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml \
-            ghcr.io/dblift/dblift:validation-latest \
-            migrations/ /workspace/examples/migrations/ \
+            -v "$(pwd):/workspace" \
+            ghcr.io/cmodiano/dblift:latest \
+            validate-sql "${ARGS[@]}" \
             --dialect postgresql \
-            --rules-file .dblift_rules.yaml \
-            --format github-annotation || echo "Validation found issues"
+            --rules-file /workspace/config/.dblift_rules.yaml \
+            --format github-actions
 
       - name: Generate SARIF report with DBLift
         if: steps.changed-files.outputs.any_changed == 'true'
+        id: sarif_raw
+        shell: bash
         continue-on-error: true
         run: |
           echo "Generating SARIF report..."
-          docker run --rm \
-            -v $(pwd)/migrations:/workspace/migrations \
-            -v $(pwd)/examples/migrations:/workspace/examples/migrations \
-            -v $(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml \
-            ghcr.io/dblift/dblift:validation-latest \
-            migrations/ /workspace/examples/migrations/ \
-            --dialect postgresql \
-            --rules-file .dblift_rules.yaml \
-            --format sarif > validation-results.sarif || echo "SARIF generation completed"
+          mapfile -t FILES < <(echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | sed '/^$/d')
+          if [[ ${#FILES[@]} -eq 0 ]]; then
+            echo "No SQL files to include in SARIF."
+            echo "sarif_path=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          ARGS=()
+          for file in "${FILES[@]}"; do
+            ARGS+=("/workspace/${file}")
+          done
+
+          echo "Files passed to SARIF validator:"
+          printf ' - %s\n' "${FILES[@]}"
+
+          set +e
+          {
+            docker run --rm \
+              -v "$(pwd):/workspace" \
+              ghcr.io/cmodiano/dblift:latest \
+              validate-sql "${ARGS[@]}" \
+              --dialect postgresql \
+              --rules-file /workspace/config/.dblift_rules.yaml \
+              --format sarif
+          } > validation-results.sarif 2> sarif.log
+          exit_code=$?
+          set -e
+
+          if [[ $exit_code -ne 0 ]]; then
+            echo "::warning::validate-sql exited with code ${exit_code}; SARIF output may be incomplete."
+          fi
+
+          if [[ ! -s validation-results.sarif ]]; then
+            echo "::warning::SARIF report missing or empty; skipping upload/comment."
+            rm -f validation-results.sarif
+            exit 0
+          fi
 
       - name: Normalize SARIF output
         if: steps.changed-files.outputs.any_changed == 'true'
@@ -77,9 +119,7 @@ jobs:
         run: |
           import json
           import os
-          import sys
           from pathlib import Path
-          from urllib.parse import quote
 
           sarif_path = Path("validation-results.sarif")
           output_path = Path(os.environ["GITHUB_OUTPUT"])
@@ -93,33 +133,29 @@ jobs:
               if sarif_path.exists():
                   sarif_path.unlink()
               write_output("")
-              sys.exit(0)
+              raise SystemExit(0)
 
-          try:
-              data = json.loads(sarif_path.read_text(encoding="utf-8"))
-          except json.JSONDecodeError as exc:
-              print(f"::warning::Invalid SARIF JSON: {exc}")
+          raw = sarif_path.read_text(encoding="utf-8")
+          start = raw.find("{")
+          end = raw.rfind("}")
+          if start == -1 or end == -1:
+              print("::warning::SARIF payload missing JSON object.")
               write_output("")
-              sys.exit(0)
+              raise SystemExit(0)
 
-          prefix = "/workspace/"
-          for run in data.get("runs", []):
-              for result in run.get("results", []):
-                  for location in result.get("locations", []):
-                      physical = location.get("physicalLocation") or {}
-                      artifact = physical.get("artifactLocation") or {}
-                      uri = artifact.get("uri")
-                      if not uri:
-                          continue
-                      rel = uri[len(prefix):] if uri.startswith(prefix) else uri
-                      artifact["uri"] = quote(rel, safe="/._-")
-                      artifact["uriBaseId"] = "ROOTPATH"
+          clean = raw[start:end + 1]
+          try:
+              json.loads(clean)
+          except json.JSONDecodeError as exc:
+              print(f"::warning::Invalid SARIF JSON after cleanup: {exc}")
+              write_output("")
+              raise SystemExit(0)
 
-          sarif_path.write_text(json.dumps(data), encoding="utf-8")
-          write_output(str(sarif_path))
+          sarif_path.write_text(clean, encoding="utf-8")
+          write_output("validation-results.sarif")
 
       - name: Upload SARIF to GitHub Security
-        if: steps.changed-files.outputs.any_changed == 'true' && steps.sarif.outputs.sarif_path
+        if: steps.changed-files.outputs.any_changed == 'true' && steps.sarif.outputs.sarif_path != ''
         uses: github/codeql-action/upload-sarif@v3
         continue-on-error: true
         with:
@@ -127,15 +163,35 @@ jobs:
           category: sql-validation
 
       - name: Create PR comment with validation results
-        if: steps.changed-files.outputs.any_changed == 'true' && steps.sarif.outputs.sarif_path
+        if: steps.changed-files.outputs.any_changed == 'true' && steps.sarif.outputs.sarif_path != ''
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
+            const core = require('@actions/core');
             
-            // Read SARIF results
-            const sarif = JSON.parse(fs.readFileSync('validation-results.sarif', 'utf8'));
-            const results = sarif.runs[0].results || [];
+            let sarifRaw;
+            try {
+              sarifRaw = fs.readFileSync('validation-results.sarif', 'utf8').trim();
+            } catch (err) {
+              core.warning(`SARIF file not found: ${err.message}`);
+              return;
+            }
+            
+            if (!sarifRaw) {
+              core.warning('SARIF file is empty; skipping PR comment.');
+              return;
+            }
+            
+            let sarif;
+            try {
+              sarif = JSON.parse(sarifRaw);
+            } catch (err) {
+              core.warning(`Failed to parse SARIF JSON: ${err.message}`);
+              return;
+            }
+            
+            const results = sarif.runs?.[0]?.results || [];
             
             const errors = results.filter(r => r.level === 'error').length;
             const warnings = results.filter(r => r.level === 'warning').length;
@@ -166,17 +222,7 @@ jobs:
               results.forEach(result => {
                 const severity = result.level === 'error' ? '❌' : result.level === 'warning' ? '⚠️' : 'ℹ️';
                 const location = result.locations[0].physicalLocation;
-                const artifact = location.artifactLocation || {};
-                const rawUri = artifact.uri || '';
-                let file;
-                try {
-                  file = decodeURIComponent(rawUri);
-                } catch {
-                  file = rawUri;
-                }
-                if (artifact.uriBaseId === 'ROOTPATH') {
-                  file = file.replace(/^ROOTPATH[\\/]/, '');
-                }
+                const file = location.artifactLocation.uri;
                 const line = location.region.startLine;
                 
                 comment += `${severity} **${result.ruleId}** (Line ${line})\n`;
@@ -202,4 +248,3 @@ jobs:
         run: |
           echo "❌ SQL validation failed. Please fix the errors above."
           exit 1
-
