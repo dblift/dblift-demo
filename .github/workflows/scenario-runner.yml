@@ -37,7 +37,25 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Prepare DBLift config
-        run: cp config/dblift-postgresql.yaml config/dblift-postgresql-ci.yaml
+        run: |
+          cp config/dblift-postgresql.yaml config/dblift-postgresql-ci.yaml
+          python - <<'PY'
+from pathlib import Path
+import yaml
+
+config_path = Path("config/dblift-postgresql-ci.yaml")
+with config_path.open() as fh:
+    data = yaml.safe_load(fh)
+
+migrations = data.get("migrations", {})
+migrations["directory"] = "./migrations"
+migrations.pop("directories", None)
+migrations.pop("undo_directories", None)
+data["migrations"] = migrations
+
+with config_path.open("w") as fh:
+    yaml.safe_dump(data, fh, sort_keys=False)
+PY
 
       - name: Ensure scripts are executable
         run: chmod +x scripts/scenarios/run_scenario.sh
