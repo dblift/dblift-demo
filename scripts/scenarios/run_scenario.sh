@@ -615,23 +615,15 @@ SQL
     run_command "List available workflows" ls -1 .github/workflows
     run_command "Show SQL validation workflow" cat .github/workflows/validate-sql.yml
 
-    SARIF_DIR_HOST="${LOG_ROOT}/sarif"
-    SARIF_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/sarif"
-    mkdir -p "${SARIF_DIR_HOST}"
     run_dblift "Generate SARIF validation report" validate-sql migrations/ \
       --dialect postgresql \
       --rules-file config/.dblift_rules.yaml \
-      --format sarif \
-      --log-dir "${SARIF_DIR_CONTAINER}"
+      --format sarif
 
-    SARIF_GENERATED_FILE="$(find "${SARIF_DIR_HOST}" -maxdepth 1 -name '*.sarif' | head -n 1 || true)"
-    if [[ -n "${SARIF_GENERATED_FILE}" ]]; then
-      run_command "Preview SARIF report headers" head -n 40 "${SARIF_GENERATED_FILE}"
-      append_summary "- ✅ Workflow inventory and sample YAML surfaced above."
-      append_summary "- ✅ SARIF report generated via `validate-sql`; header preview included."
-    else
-      append_summary "- ⚠️ Expected SARIF output not found under ${SARIF_DIR_HOST}."
-    fi
+    SARIF_LOG_PATH="${LAST_LOG_PATH}"
+    run_command "Preview SARIF report headers" head -n 40 "${SARIF_LOG_PATH}"
+    append_summary "- ✅ Workflow inventory and sample YAML surfaced above."
+    append_summary "- ✅ SARIF output captured via `validate-sql`; header preview included from ${SARIF_LOG_PATH}."
     ;;
 
   "07")
