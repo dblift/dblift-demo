@@ -39,7 +39,21 @@ jobs:
       - name: Prepare DBLift config
         run: |
           cp config/dblift-postgresql.yaml config/dblift-postgresql-ci.yaml
-          python -c "from pathlib import Path; import yaml; config_path = Path('config/dblift-postgresql-ci.yaml'); data = yaml.safe_load(config_path.read_text()); migrations = data.get('migrations', {}); migrations['directory'] = './migrations'; migrations['directories'] = ['./migrations/features', './migrations/performance']; migrations['undo_directories'] = ['./migrations/features', './migrations/performance']; data['migrations'] = migrations; config_path.write_text(yaml.safe_dump(data, sort_keys=False))"
+          python3 - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          config_path = Path("config/dblift-postgresql-ci.yaml")
+          data = yaml.safe_load(config_path.read_text())
+
+          migrations = data.get("migrations", {})
+          migrations["directory"] = "./migrations"
+          migrations["directories"] = ["./migrations/features", "./migrations/performance"]
+          migrations["undo_directories"] = ["./migrations/features", "./migrations/performance"]
+          data["migrations"] = migrations
+
+          config_path.write_text(yaml.safe_dump(data, sort_keys=False))
+          PY
 
       - name: Ensure scripts are executable
         run: chmod +x scripts/scenarios/run_scenario.sh
