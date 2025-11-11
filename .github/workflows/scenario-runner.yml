@@ -38,22 +38,44 @@ jobs:
 
       - name: Prepare DBLift config
         run: |
-          cp config/dblift-postgresql.yaml config/dblift-postgresql-ci.yaml
-          python3 - <<'PY'
-          from pathlib import Path
-          import yaml
+          cat <<'YAML' > config/dblift-postgresql-ci.yaml
+          # DBLift Configuration - PostgreSQL Example
+          # Generated for CI scenario runner
+          database:
+            url: "jdbc:postgresql://localhost:5432/dblift_demo?sslmode=disable"
+            schema: "public"
+            username: "dblift_user"
+            password: "dblift_pass"
 
-          config_path = Path("config/dblift-postgresql-ci.yaml")
-          data = yaml.safe_load(config_path.read_text())
+          migrations:
+            directory: "./migrations"
+            directories:
+              - "./migrations/features"
+              - "./migrations/performance"
+            undo_directories:
+              - "./migrations/features"
+              - "./migrations/performance"
+            recursive: true
+            script_encoding: "utf-8"
 
-          migrations = data.get("migrations", {})
-          migrations["directory"] = "./migrations"
-          migrations["directories"] = ["./migrations/features", "./migrations/performance"]
-          migrations["undo_directories"] = ["./migrations/features", "./migrations/performance"]
-          data["migrations"] = migrations
+          validation:
+            enabled: true
+            rules_file: "config/.dblift_rules.yaml"
+            fail_on_violations: false
+            severity_threshold: "warning"
+            performance_enabled: true
+            performance_rules:
+              cartesian_product: "error"
+              missing_where_clause: "warning"
+              select_star: "info"
+              correlated_subquery: "info"
 
-          config_path.write_text(yaml.safe_dump(data, sort_keys=False))
-          PY
+          logging:
+            level: INFO
+
+          log_format: "text"
+          log_dir: "./logs"
+          YAML
 
       - name: Ensure scripts are executable
         run: chmod +x scripts/scenarios/run_scenario.sh
