@@ -74,10 +74,10 @@ jobs:
         continue-on-error: true
         run: |
           echo "Generating SARIF report..."
-          set +e
           mapfile -t FILES < <(echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | sed '/^$/d')
           if [[ ${#FILES[@]} -eq 0 ]]; then
             echo "No SQL files to include in SARIF."
+            echo "sarif_path=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -89,6 +89,7 @@ jobs:
           echo "Files passed to SARIF validator:"
           printf ' - %s\n' "${FILES[@]}"
 
+          set +e
           {
             docker run --rm \
               -v "$(pwd):/workspace" \
@@ -111,6 +112,26 @@ jobs:
             echo "sarif_path=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+
+          python <<'PY'
+            import json
+            from pathlib import Path
+
+            sarif_path = Path("validation-results.sarif")
+            raw = sarif_path.read_text(encoding="utf-8")
+            start = raw.find("{")
+            end = raw.rfind("}")
+            if start == -1 or end == -1:
+                raise SystemExit("::warning::SARIF payload missing JSON object.")
+
+            clean = raw[start:end + 1]
+            try:
+                json.loads(clean)
+            except json.JSONDecodeError as exc:
+                raise SystemExit(f"::warning::Invalid SARIF JSON after cleanup: {exc}")
+
+            sarif_path.write_text(clean, encoding="utf-8")
+          PY
 
           echo "sarif_path=validation-results.sarif" >> "$GITHUB_OUTPUT"
 
