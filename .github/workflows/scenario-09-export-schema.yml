@@ -1,0 +1,12 @@
+name: Scenario 09 - Targeted Schema Exports
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run:
+    uses: ./.github/workflows/scenario-runner.yml
+    with:
+      scenario-id: "09"
+      scenario-name: "Targeted Schema Exports"
+

@@ -14,6 +14,7 @@ Each demo scenario now has a dedicated workflow that runs the scripted walkthrou
 | 06 - Tag-Based Deployment | `scenario-06-tag-based-deployment.yml` | Runs selective migration waves using tags |
 | 07 - Brownfield Migration | `scenario-07-brownfield-migration.yml` | Baselines legacy schema then layers new changes |
 | 08 - Multi-Module Project | `scenario-08-multi-module.yml` | Manages module directories and module-scoped validation |
+| 09 - Targeted Schema Exports | `scenario-09-export-schema.yml` | Generates managed vs. unmanaged schema dumps for baselining |
 
 Trigger any scenario from the Actions tab via **Run workflow** to see a narrated execution in the job summary and downloadable logs under `scenario-<id>-logs`.
 

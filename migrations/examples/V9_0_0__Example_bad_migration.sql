@@ -9,8 +9,8 @@ CREATE TABLE bad_example_table (
     description TEXT
 );
 
--- Violation 3: SELECT * usage
-INSERT INTO bad_example_table SELECT * FROM users;
+-- Violation 3: INSERT without column list (relies on source order)
+INSERT INTO bad_example_table SELECT username, email FROM users;
 
 -- Violation 4: DELETE without WHERE clause
 DELETE FROM bad_example_table;

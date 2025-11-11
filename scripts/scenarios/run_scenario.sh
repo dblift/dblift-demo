@@ -820,6 +820,58 @@ EOF
     append_summary "- ✅ Module migrations validated independently."
     ;;
 
+  "09")
+    append_summary "## Overview"
+    append_summary "- **Goal**: Showcase targeted schema exports for managed vs. unmanaged objects."
+    append_summary "- **Focus**: Mix manual (legacy) tables with migration-managed ones, then export each subset."
+    append_summary "- **Key Outputs**: Managed-only and unmanaged-only SQL dumps saved as run artifacts."
+    append_summary ""
+    append_summary "## Execution Plan"
+    append_summary "- 🔁 Reset the schema to start from a known baseline."
+    append_summary "- ✍️ Create a legacy table manually to mimic unmanaged drift."
+    append_summary "- ▶️ Apply migrations to bring the schema to the latest managed version."
+    append_summary "- 💾 Export managed objects with `--ignore-unmanaged`."
+    append_summary "- 🗂️ Export the unmanaged table with `--only-unmanaged` for baselining."
+    append_summary ""
+
+    wait_for_db
+    reset_database "Reset schema for export demo"
+
+    psql_exec "Create unmanaged audit table" \
+      "CREATE TABLE IF NOT EXISTS legacy_audit_log (
+         id SERIAL PRIMARY KEY,
+         event_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         payload JSONB NOT NULL
+       );
+       COMMENT ON TABLE legacy_audit_log IS 'Manually created to simulate brownfield drift';"
+
+    run_dblift "Apply migrations (managed objects)" migrate --config config/dblift-postgresql.yaml
+
+    EXPORT_DIR_HOST="${LOG_ROOT}/exports"
+    EXPORT_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/exports"
+    mkdir -p "${EXPORT_DIR_HOST}"
+
+    run_dblift "Export managed schema (ignore unmanaged)" export \
+      --config config/dblift-postgresql.yaml \
+      --ignore-unmanaged \
+      --output "${EXPORT_DIR_CONTAINER}/managed.sql"
+    MANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "📄 Export managed schema" "${MANAGED_EXPORT_LOG}" 80
+    run_command "Preview managed export (first 40 lines)" head -n 40 "${EXPORT_DIR_HOST}/managed.sql"
+
+    run_dblift "Export unmanaged schema only" export \
+      --config config/dblift-postgresql.yaml \
+      --only-unmanaged \
+      --output "${EXPORT_DIR_CONTAINER}/unmanaged.sql"
+    UNMANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "📄 Export unmanaged schema" "${UNMANAGED_EXPORT_LOG}" 80
+    run_command "Preview unmanaged export (first 40 lines)" head -n 40 "${EXPORT_DIR_HOST}/unmanaged.sql"
+
+    append_summary "- ✅ Managed export excludes the manually created legacy table."
+    append_summary "- ✅ Unmanaged export captures the legacy table for baselining."
+    append_summary "- 📦 SQL files (`managed.sql`, `unmanaged.sql`) saved under scenario artifacts."
+    ;;
+
   *)
     append_summary "❌ Scenario implementation not found."
     echo "Scenario ${SCENARIO_ID} is not implemented yet" >&2
