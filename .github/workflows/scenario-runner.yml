@@ -39,6 +39,9 @@ jobs:
       - name: Patch DBLift config for CI
         run: |
           perl -0pi -e 's#directory: "\./migrations/core"#directory: "./migrations"#' config/dblift-postgresql.yaml
+          perl -0pi -e 's#\n\s+directories:\n(?:\s+- .*\n)+##m' config/dblift-postgresql.yaml
+          perl -0pi -e 's#\n\s+undo_directories:\n(?:\s+- .*\n)+##m' config/dblift-postgresql.yaml
+          perl -0pi -e 's#\n{3,}#\n\n#g' config/dblift-postgresql.yaml
 
       - name: Ensure scripts are executable
         run: chmod +x scripts/scenarios/run_scenario.sh
