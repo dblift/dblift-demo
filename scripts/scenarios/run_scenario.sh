@@ -491,9 +491,7 @@ SQL
       append_summary "- ⚠️ Detected checksum mismatch after manual corruption."
     fi
 
-    run_dblift "Repair schema history" repair \
-      --config "${CONFIG_PATH}" \
-      --migration-path "./migrations"
+    run_dblift "Repair schema history" repair --config "${CONFIG_PATH}"
     run_dblift "Re-validate after repair" validate "${VALIDATE_ARGS[@]}"
     append_summary "- ✅ Undo sequence completed with `dblift undo --target-version 1.0.3`."
     append_summary "- ✅ Corruption detected and automatically repaired."
