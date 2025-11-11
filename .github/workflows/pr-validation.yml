@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'migrations/**/*.sql'
+      - 'examples/migrations/**/*.sql'
       - 'config/.dblift_rules.yaml'
     types: [opened, synchronize, reopened]
 
@@ -30,6 +31,7 @@ jobs:
         with:
           files: |
             migrations/**/*.sql
+            examples/migrations/**/*.sql
 
       - name: List changed migrations
         if: steps.changed-files.outputs.any_changed == 'true'

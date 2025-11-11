@@ -613,7 +613,10 @@ SQL
     append_summary ""
 
     run_command "List available workflows" ls -1 .github/workflows
+    show_log_excerpt "🗂️ Available workflows" "${LAST_LOG_PATH}" 40
+
     run_command "Show SQL validation workflow" cat .github/workflows/validate-sql.yml
+    show_log_excerpt "🧾 validate-sql workflow (excerpt)" "${LAST_LOG_PATH}" 60
 
     run_dblift "Generate SARIF validation report" validate-sql migrations/ \
       --dialect postgresql \
@@ -622,8 +625,9 @@ SQL
 
     SARIF_LOG_PATH="${LAST_LOG_PATH}"
     run_command "Preview SARIF report headers" head -n 40 "${SARIF_LOG_PATH}"
+    show_log_excerpt "🪪 SARIF header preview" "${LAST_LOG_PATH}" 60
     append_summary "- ✅ Workflow inventory and sample YAML surfaced above."
-    append_summary "- ✅ SARIF output captured via `validate-sql`; header preview included from ${SARIF_LOG_PATH}."
+    append_summary "- ✅ SARIF output captured via \`validate-sql\`; header preview included from \`${SARIF_LOG_PATH}\`."
     ;;
 
   "07")
