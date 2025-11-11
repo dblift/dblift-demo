@@ -462,7 +462,9 @@ SQL
     wait_for_db
     reset_database "Reset schema for rollback scenario"
 
-    run_dblift "Apply migrations through current version" migrate --config "${CONFIG_PATH}"
+    run_dblift "Apply migrations through current version" migrate \
+      --config "${CONFIG_PATH}" \
+      --exclude-tags security
     run_dblift "Confirm schema status (before rollback)" info --config "${CONFIG_PATH}"
     BEFORE_ROLLBACK_INFO="${LAST_LOG_PATH}"
     show_log_excerpt "📋 Schema history before rollback" "${BEFORE_ROLLBACK_INFO}" 120
@@ -474,7 +476,9 @@ SQL
     AFTER_ROLLBACK_INFO="${LAST_LOG_PATH}"
     show_log_excerpt "📋 Schema history after rollback" "${AFTER_ROLLBACK_INFO}" 120
 
-    run_dblift "Reapply migrations to latest" migrate --config "${CONFIG_PATH}"
+    run_dblift "Reapply migrations to latest" migrate \
+      --config "${CONFIG_PATH}" \
+      --exclude-tags security
 
     psql_exec "Simulate checksum corruption" \
       "UPDATE dblift_schema_history SET checksum = 'corrupted' WHERE version = '1.0.3';"
