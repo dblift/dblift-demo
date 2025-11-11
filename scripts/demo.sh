@@ -89,7 +89,7 @@ echo ""
 
 # Step 8: Rollback one migration
 echo -e "${GREEN}[Step 8/9]${NC} Rolling back last migration..."
-dblift undo --count 1
+dblift undo
 echo ""
 
 # Step 9: Export schema

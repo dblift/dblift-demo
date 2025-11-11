@@ -180,5 +180,5 @@ dblift validate-sql migrations/test/V9_9_9__good_example.sql \
 - HTML reports provide detailed analysis
 
 ## Next Steps
-- Try [Scenario 03: Rollback & Recovery](../03-rollback-recovery/)
+- Try [Scenario 03: Undo Playbook](../03-undo-playbook/)
 

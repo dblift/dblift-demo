@@ -448,19 +448,61 @@ SQL
 
   "03")
     append_summary "## Overview"
-    append_summary "- **Goal**: Demonstrate safe rollback and recovery."
-    append_summary "- **Focus**: Undo recent migrations down to version 1.0.3, then detect and repair corruption."
-    append_summary "- **Key Outputs**: Schema history snapshots plus validation/repair logs."
+    append_summary "- **Goal**: Practice the three primary undo flows."
+    append_summary "- **Focus**: Undo the latest migration, jump back to a target version, and roll back a single version on demand."
+    append_summary "- **Key Outputs**: Command transcripts showing each undo mode and its corresponding reapply."
     append_summary ""
     append_summary "## Execution Plan"
-    append_summary "- 🔁 Reset schema to guarantee a known baseline."
-    append_summary "- ▶️ Apply migrations through the latest version and capture history."
-    append_summary "- ⏪ Use `dblift undo --target-version 1.0.3` to revert feature/performance migrations."
-    append_summary "- 🩺 Simulate checksum corruption, detect it, and run `dblift repair`."
+    append_summary "- 🔁 Reset the database to start from a known baseline."
+    append_summary "- ▶️ Apply migrations (excluding security) so that undo scripts are available."
+    append_summary "- ↩️ Undo the last migration (default behaviour) and reapply it."
+    append_summary "- 🎯 Undo back to version 1.0.2 with `--target-version`, then migrate forward again."
+    append_summary "- 🧷 Undo only version 1.1.0 using `--version`, then restore it."
     append_summary ""
 
     wait_for_db
-    reset_database "Reset schema for rollback scenario"
+    reset_database "Reset schema for undo playbook"
+
+    MIGRATE_BASE_ARGS=(
+      "--config" "${CONFIG_PATH}"
+      "--exclude-tags" "security"
+    )
+
+    run_dblift "Apply migrations for undo demo" migrate "${MIGRATE_BASE_ARGS[@]}"
+
+    run_dblift "Undo newest migration" undo \
+      --config "${CONFIG_PATH}"
+    run_dblift "Reapply latest migration" migrate "${MIGRATE_BASE_ARGS[@]}"
+
+    run_dblift "Undo back to version 1.0.2" undo \
+      --config "${CONFIG_PATH}" \
+      --target-version 1.0.2
+    run_dblift "Migrate forward after target undo" migrate "${MIGRATE_BASE_ARGS[@]}"
+
+    run_dblift "Undo specific version 1.1.0" undo \
+      --config "${CONFIG_PATH}" \
+      --version 1.1.0
+    run_dblift "Reapply version 1.1.0 and dependents" migrate "${MIGRATE_BASE_ARGS[@]}"
+
+    append_summary "- ✅ `dblift undo` (no extra flags) rolls back the most recent migration."
+    append_summary "- ✅ `dblift undo --target-version` safely rewinds multiple migrations."
+    append_summary "- ✅ `dblift undo --version` removes one specific version without affecting others."
+    ;;
+
+  "04")
+    append_summary "## Overview"
+    append_summary "- **Goal**: Demonstrate checksum corruption detection and repair."
+    append_summary "- **Focus**: Undo feature migrations, simulate history tampering, and heal the schema history table."
+    append_summary "- **Key Outputs**: Schema history snapshots plus validation/repair logs."
+    append_summary ""
+    append_summary "## Execution Plan"
+    append_summary "- 🔁 Reset schema and apply migrations (excluding security) to get to version 1.3.0."
+    append_summary "- ⏪ Roll back to 1.0.3 using undo scripts and capture history."
+    append_summary "- ▶️ Reapply migrations to latest and manually corrupt the checksum."
+    append_summary ""
+
+    wait_for_db
+    reset_database "Reset schema for checksum repair demo"
 
     run_dblift "Apply migrations through current version" migrate \
       --config "${CONFIG_PATH}" \
@@ -483,22 +525,18 @@ SQL
     psql_exec "Simulate checksum corruption" \
       "UPDATE dblift_schema_history SET checksum = 'corrupted' WHERE version = '1.0.3';"
 
-    VALIDATE_ARGS=(
-      "--config" "${CONFIG_PATH}"
-    )
-
-    if ! run_dblift "Detect corruption via validation" validate "${VALIDATE_ARGS[@]}"; then
+    if ! run_dblift "Detect corruption via validation" validate --config "${CONFIG_PATH}"; then
       append_summary "- ⚠️ Detected checksum mismatch after manual corruption."
     fi
 
     run_dblift "Repair schema history" repair --config "${CONFIG_PATH}"
-    run_dblift "Re-validate after repair" validate "${VALIDATE_ARGS[@]}"
-    append_summary "- ✅ Undo sequence completed with `dblift undo --target-version 1.0.3`."
-    append_summary "- ✅ Corruption detected and automatically repaired."
-    append_summary "- ✅ Final validation confirms schema integrity."
+    run_dblift "Re-validate after repair" validate --config "${CONFIG_PATH}"
+    append_summary "- ✅ Rollback + reapply sequence completed."
+    append_summary "- ✅ Corruption surfaced via `dblift validate`."
+    append_summary "- ✅ `dblift repair` recalculated the checksum and validation now passes."
     ;;
 
-  "04")
+  "05")
     append_summary "## Overview"
     append_summary "- **Goal**: Catch unplanned schema drift with clear, auditable output."
     append_summary "- **Focus**: Establish a clean baseline, introduce manual drift, and surface critical differences."
@@ -561,7 +599,7 @@ SQL
     append_summary "- 📦 Additional HTML/JSON assets attached for auditing."
     ;;
 
-  "05")
+  "06")
     append_summary "## Overview"
     append_summary "- **Goal**: Demonstrate CI/CD assets available in this repo."
     append_summary "- **Focus**: Enumerate workflows and produce a SARIF validation report for code scanning."
@@ -595,7 +633,7 @@ SQL
     fi
     ;;
 
-  "06")
+  "07")
     append_summary "## Overview"
     append_summary "- **Goal**: Illustrate tag-based deployments for feature toggles."
     append_summary "- **Focus**: Apply core migrations, roll out tagged features selectively, and inspect status."
@@ -647,7 +685,7 @@ SQL
     append_summary "- ✅ Final pass excluded analytics while allowing remaining features."
     ;;
 
-  "07")
+  "08")
     append_summary "## Overview"
     append_summary "- **Goal**: Showcase brownfield onboarding using `dblift baseline`."
     append_summary "- **Focus**: Record an existing schema, then add new migrations safely."
@@ -721,7 +759,7 @@ SQL
     append_summary "- ✅ Status output confirms baseline + incremental change."
     ;;
 
-  "08")
+  "09")
     append_summary "## Overview"
     append_summary "- **Goal**: Demonstrate multi-module orchestration with directory overrides."
     append_summary "- **Focus**: Blend core migrations with module-specific directories and run targeted operations."
@@ -829,7 +867,7 @@ EOF
     append_summary "- ✅ Module migrations validated independently."
     ;;
 
-  "09")
+  "10")
     append_summary "## Overview"
     append_summary "- **Goal**: Showcase targeted schema exports for managed vs. unmanaged objects."
     append_summary "- **Focus**: Mix manual (legacy) tables with migration-managed ones, then export each subset."

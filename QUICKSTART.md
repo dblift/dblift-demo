@@ -160,7 +160,7 @@ docker run --rm \
   -e DBLIFT_DB_SCHEMA=public \
   ghcr.io/cmodiano/dblift:latest undo \
   --config /workspace/config/dblift-postgresql.yaml \
-  --count 1
+  # Rolls back the most recent migration
 ```
 
 **Expected output:**
@@ -308,7 +308,7 @@ docker run --rm -v $(pwd):/workspace --network dblift-demo_default \
   -e DBLIFT_DB_URL=jdbc:postgresql://postgres:5432/dblift_demo \
   -e DBLIFT_DB_USER=dblift_user -e DBLIFT_DB_PASSWORD=dblift_pass \
   -e DBLIFT_DB_SCHEMA=public \
-  ghcr.io/cmodiano/dblift:latest undo --config /workspace/config/dblift-postgresql.yaml --count 1
+  ghcr.io/cmodiano/dblift:latest undo --config /workspace/config/dblift-postgresql.yaml
 
 # 8. Export schema
 echo -e "\n=== EXPORTING SCHEMA ==="

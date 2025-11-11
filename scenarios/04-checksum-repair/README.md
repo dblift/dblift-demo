@@ -1,4 +1,4 @@
-# Scenario 03: Rollback & Recovery
+# Scenario 04: Checksum Repair
 
 ## Objective
 Demonstrate undo migrations and repair functionality.
@@ -27,12 +27,12 @@ cat migrations/core/U1_0_3__Remove_orders.sql
 
 This migration will roll back the orders tables created in V1_0_3.
 
-### 3. Rollback Orders Table
+### 3. Roll Back to Version 1.0.3
 
 ```bash
 dblift undo \
   --config config/dblift-postgresql.yaml \
-  --target-version 1.0.2
+  --target-version 1.0.3
 ```
 
 **What happens:**
@@ -47,15 +47,15 @@ dblift undo \
 dblift info --config config/dblift-postgresql.yaml
 ```
 
-Current version should now be 1.0.2 (orders tables removed).
+Current version should now be 1.0.3.
 
-### 5. Re-apply Migration
+### 5. Re-apply Migrations
 
 ```bash
 dblift migrate --config config/dblift-postgresql.yaml
 ```
 
-This will re-apply V1_0_3 and recreate the orders tables.
+This replays the feature/performance migrations you just undid.
 
 ### 6. Simulate Corruption (For Demo)
 
@@ -130,5 +130,5 @@ This marks existing schema as version 1.0.0 without running migrations.
 - Safe recovery from errors
 
 ## Next Steps
-- Try [Scenario 04: Drift Detection](../04-drift-detection/)
+- Try [Scenario 05: Drift Detection](../05-drift-detection/)
 
