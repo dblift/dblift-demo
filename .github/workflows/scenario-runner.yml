@@ -36,6 +36,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Patch DBLift config for CI
+        run: |
+          perl -0pi -e 's#directory: "\./migrations/core"#directory: "./migrations"#' config/dblift-postgresql.yaml
+
       - name: Ensure scripts are executable
         run: chmod +x scripts/scenarios/run_scenario.sh
 
