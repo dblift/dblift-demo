@@ -485,9 +485,6 @@ SQL
 
     VALIDATE_ARGS=(
       "--config" "${CONFIG_PATH}"
-      "--scripts" "./migrations/core"
-      "--scripts" "./migrations/features"
-      "--scripts" "./migrations/performance"
     )
 
     if ! run_dblift "Detect corruption via validation" validate "${VALIDATE_ARGS[@]}"; then
