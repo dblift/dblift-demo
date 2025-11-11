@@ -32,7 +32,7 @@ DBLift rewinds migrations until version `1.0.2` is the current state. Follow up 
 ```bash
 dblift undo \
   --config config/dblift-postgresql.yaml \
-  --version 1.1.0
+  --versions 1.1.0
 ```
 This removes only the `1.1.0` migration (and its undo). Run `dblift migrate` again to restore it.
 
@@ -45,7 +45,7 @@ Confirm the expected version list after each undo/redo step.
 ## Key Takeaways
 - Running `dblift undo` with no extra flags rolls back the most recent migration.
 - `--target-version` rewinds multiple migrations in a controlled manner.
-- `--version` removes just one migration without affecting earlier versions.
+- `--versions` removes one or more specific migrations without affecting earlier versions.
 - Always re-run `dblift migrate` to bring the schema back to the desired state.
 
 ## Next Steps

@@ -457,7 +457,7 @@ SQL
     append_summary "- ▶️ Apply migrations (excluding security) so that undo scripts are available."
     append_summary "- ↩️ Undo the last migration (default behaviour) and reapply it."
     append_summary "- 🎯 Undo back to version 1.0.2 with `--target-version`, then migrate forward again."
-    append_summary "- 🧷 Undo only version 1.1.0 using `--version`, then restore it."
+    append_summary "- 🧷 Undo only version 1.1.0 using `--versions`, then restore it."
     append_summary ""
 
     wait_for_db
@@ -481,12 +481,12 @@ SQL
 
     run_dblift "Undo specific version 1.1.0" undo \
       --config "${CONFIG_PATH}" \
-      --version 1.1.0
+      --versions 1.1.0
     run_dblift "Reapply version 1.1.0 and dependents" migrate "${MIGRATE_BASE_ARGS[@]}"
 
     append_summary "- ✅ `dblift undo` (no extra flags) rolls back the most recent migration."
     append_summary "- ✅ `dblift undo --target-version` safely rewinds multiple migrations."
-    append_summary "- ✅ `dblift undo --version` removes one specific version without affecting others."
+    append_summary "- ✅ `dblift undo --versions` removes specific version(s) without affecting others."
     ;;
 
   "04")
