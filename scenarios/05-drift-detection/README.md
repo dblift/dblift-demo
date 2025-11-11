@@ -1,4 +1,4 @@
-# Scenario 04: Schema Drift Detection
+# Scenario 05: Schema Drift Detection
 
 ## Objective
 Detect manual schema changes outside of migrations.
@@ -212,5 +212,5 @@ dblift migrate --config config/dblift-postgresql.yaml
 5. **Third-party tools**: Schema modifications by external systems
 
 ## Next Steps
-- Try [Scenario 05: CI/CD Integration](../05-ci-cd-integration/)
+- Try [Scenario 06: CI/CD Integration](../06-ci-cd-integration/)
 

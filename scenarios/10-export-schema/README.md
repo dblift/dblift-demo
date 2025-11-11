@@ -1,4 +1,4 @@
-# Scenario 09: Targeted Schema Exports
+# Scenario 10: Targeted Schema Exports
 
 ## Objective
 Show how DBLift can export managed objects separately from unmanaged ones. This enables brownfield teams to capture a baseline of legacy structures while still generating migration-managed snapshots.
@@ -20,7 +20,7 @@ dblift clean \
 dblift migrate --config config/dblift-postgresql.yaml
 ```
 
-> Tip: `scripts/scenarios/run_scenario.sh 09` performs these steps automatically in CI.
+> Tip: `scripts/scenarios/run_scenario.sh 10` performs these steps automatically in CI.
 
 ### 2. Introduce an Unmanaged Table Manually
 
@@ -80,7 +80,7 @@ Verify that only the intended objects appear in each file.
 - You can generate migration files from the unmanaged dump to bring everything under DBLift control.
 
 ## Next Steps
-- Try [Scenario 07: Brownfield Migration](../07-brownfield-migration/) to see how baselines complement targeted exports.
-- Explore `dblift diff --ignore-unmanaged` for day-to-day drift detection in brownfield environments.
+- Revisit [Scenario 08: Brownfield Migration](../08-brownfield-migration/) to see how baselines complement targeted exports.
+- Explore `dblift diff --ignore-unmanaged` in [Scenario 05: Drift Detection](../05-drift-detection/) for ongoing monitoring.
 
 

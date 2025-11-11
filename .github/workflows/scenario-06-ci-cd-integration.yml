@@ -1,4 +1,4 @@
-name: Scenario 05 - CI/CD Integration
+name: Scenario 06 - CI/CD Integration
 
 on:
   workflow_dispatch:
@@ -7,6 +7,6 @@ jobs:
   run:
     uses: ./.github/workflows/scenario-runner.yml
     with:
-      scenario-id: "05"
+      scenario-id: "06"
       scenario-name: "CI/CD Integration"
 

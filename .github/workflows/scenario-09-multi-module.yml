@@ -1,4 +1,4 @@
-name: Scenario 08 - Multi-Module Project
+name: Scenario 09 - Multi-Module Project
 
 on:
   workflow_dispatch:
@@ -7,6 +7,6 @@ jobs:
   run:
     uses: ./.github/workflows/scenario-runner.yml
     with:
-      scenario-id: "08"
+      scenario-id: "09"
       scenario-name: "Multi-Module Project"
 

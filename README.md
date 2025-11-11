@@ -111,7 +111,7 @@ See [INSTALL.md](INSTALL.md) for detailed instructions.
 - ✅ **Validation Rules** - Custom SQL validation with business rules
 - 🔄 **CI/CD Examples** - GitHub Actions workflows
 - 🗄️ **Multi-Database Support** - PostgreSQL, SQL Server, MySQL
-- 📚 **8 Demo Scenarios** - Step-by-step walkthroughs
+- 📚 **10 Demo Scenarios** - Step-by-step walkthroughs
 - ⚙️ **Configuration Examples** - Production-ready configs
 
 ## Demo Scenarios
@@ -120,12 +120,14 @@ See [INSTALL.md](INSTALL.md) for detailed instructions.
 |---|----------|-------------|------|
 | 01 | [Basic Migration](scenarios/01-basic-migration/) | Getting started | 10 min |
 | 02 | [Validation Rules](scenarios/02-validation-rules/) | SQL quality checks | 15 min |
-| 03 | [Rollback & Recovery](scenarios/03-rollback-recovery/) | Undo migrations | 15 min |
-| 04 | [Drift Detection](scenarios/04-drift-detection/) | Schema monitoring | 15 min |
-| 05 | [CI/CD Integration](scenarios/05-ci-cd-integration/) | Automation | 20 min |
-| 06 | [Tag-Based Deployment](scenarios/06-tag-based-deployment/) | Selective rollout | 15 min |
-| 07 | [Brownfield Migration](scenarios/07-brownfield-migration/) | Existing databases | 20 min |
-| 08 | [Multi-Module Project](scenarios/08-multi-module-project/) | Large projects | 15 min |
+| 03 | [Undo Playbook](scenarios/03-undo-playbook/) | Latest, target, and specific undo flows | 15 min |
+| 04 | [Checksum Repair](scenarios/04-checksum-repair/) | Detect and repair history corruption | 15 min |
+| 05 | [Drift Detection](scenarios/05-drift-detection/) | Schema monitoring | 15 min |
+| 06 | [CI/CD Integration](scenarios/06-ci-cd-integration/) | Automation | 20 min |
+| 07 | [Tag-Based Deployment](scenarios/07-tag-based-deployment/) | Selective rollout | 15 min |
+| 08 | [Brownfield Migration](scenarios/08-brownfield-migration/) | Existing databases | 20 min |
+| 09 | [Multi-Module Project](scenarios/09-multi-module-project/) | Large projects | 15 min |
+| 10 | [Targeted Schema Exports](scenarios/10-export-schema/) | Managed vs. unmanaged exports | 10 min |
 
 ## Repository Structure
 

@@ -1,4 +1,4 @@
-# Scenario 05: CI/CD Integration
+# Scenario 06: CI/CD Integration
 
 ## Objective
 Integrate DBLift into CI/CD pipelines for automated validation and deployment.
@@ -296,5 +296,5 @@ deploy-prod:
 - Notification on failures
 
 ## Next Steps
-- Try [Scenario 06: Tag-Based Deployment](../06-tag-based-deployment/)
+- Try [Scenario 07: Tag-Based Deployment](../07-tag-based-deployment/)
 

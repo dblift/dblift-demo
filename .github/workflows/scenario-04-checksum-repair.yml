@@ -1,4 +1,4 @@
-name: Scenario 04 - Drift Detection
+name: Scenario 04 - Checksum Repair
 
 on:
   workflow_dispatch:
@@ -8,5 +8,5 @@ jobs:
     uses: ./.github/workflows/scenario-runner.yml
     with:
       scenario-id: "04"
-      scenario-name: "Drift Detection"
+      scenario-name: "Checksum Repair"
 

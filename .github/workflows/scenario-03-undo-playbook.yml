@@ -1,4 +1,4 @@
-name: Scenario 03 - Rollback & Recovery
+name: Scenario 03 - Undo Playbook
 
 on:
   workflow_dispatch:
@@ -8,5 +8,5 @@ jobs:
     uses: ./.github/workflows/scenario-runner.yml
     with:
       scenario-id: "03"
-      scenario-name: "Rollback & Recovery"
+      scenario-name: "Undo Playbook"
 

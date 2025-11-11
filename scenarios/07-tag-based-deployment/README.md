@@ -1,4 +1,4 @@
-# Scenario 06: Tag-Based Deployment
+# Scenario 07: Tag-Based Deployment
 
 ## Objective
 Demonstrate selective migration execution using tags for feature-based deployments.
@@ -284,5 +284,5 @@ A: No - tags are part of migration filename and tracked in history.
 A: No - migrations always apply in version order, tags only filter which ones run.
 
 ## Next Steps
-- Try [Scenario 07: Brownfield Migration](../07-brownfield-migration/)
+- Try [Scenario 08: Brownfield Migration](../08-brownfield-migration/)
 
