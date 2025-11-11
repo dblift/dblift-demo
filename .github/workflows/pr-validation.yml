@@ -45,24 +45,10 @@ jobs:
         continue-on-error: true
         run: |
           echo "Validating SQL migrations with DBLift..."
-          mapfile -t FILES < <(echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | sed '/^$/d')
-          if [[ ${#FILES[@]} -eq 0 ]]; then
-            echo "No SQL files to validate."
-            exit 0
-          fi
-
-          ARGS=()
-          for file in "${FILES[@]}"; do
-            ARGS+=("/workspace/${file}")
-          done
-
-          echo "Files passed to validator:"
-          printf ' - %s\n' "${FILES[@]}"
-
           docker run --rm \
             -v "$(pwd):/workspace" \
             ghcr.io/cmodiano/dblift:latest \
-            validate-sql "${ARGS[@]}" \
+            validate-sql /workspace/migrations/ \
             --dialect postgresql \
             --rules-file /workspace/config/.dblift_rules.yaml \
             --format github-actions
@@ -92,7 +78,7 @@ jobs:
           docker run --rm \
             -v "$(pwd):/workspace" \
             ghcr.io/cmodiano/dblift:latest \
-            validate-sql "${ARGS[@]}" \
+            validate-sql /workspace/migrations/ \
             --dialect postgresql \
             --rules-file /workspace/config/.dblift_rules.yaml \
             --format sarif > validation-results.sarif
@@ -106,6 +92,7 @@ jobs:
           if [[ ! -s validation-results.sarif ]]; then
             echo "::warning::SARIF report missing or empty; skipping upload/comment."
             rm -f validation-results.sarif
+            echo "sarif_path=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
