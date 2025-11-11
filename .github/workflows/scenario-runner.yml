@@ -49,8 +49,6 @@ jobs:
 
           migrations = data.get("migrations", {})
           migrations["directory"] = "./migrations"
-          migrations.pop("directories", None)
-          migrations.pop("undo_directories", None)
           migrations["directories"] = ["./migrations/features", "./migrations/performance"]
           migrations["undo_directories"] = ["./migrations/features", "./migrations/performance"]
           data["migrations"] = migrations
