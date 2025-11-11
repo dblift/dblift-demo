@@ -382,7 +382,7 @@ case "${SCENARIO_ID}" in
       --rules-file config/.dblift_rules_performance.yaml \
       --format console
 
-    BAD_SRC_DIR="migrations/examples/bad-demo"
+    BAD_SRC_DIR="examples/migrations/bad-demo"
     mkdir -p "${BAD_SRC_DIR}"
     BAD_FILE="${BAD_SRC_DIR}/V9_9_9__bad_example.sql"
     cat > "${BAD_FILE}" <<'SQL'

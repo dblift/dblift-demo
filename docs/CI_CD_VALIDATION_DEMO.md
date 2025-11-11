@@ -26,7 +26,7 @@ The workflow triggers on any PR that modifies:
 Validation errors appear directly in the PR diff view:
 
 ```
-migrations/V9_0_0__Example_bad.sql
+examples/migrations/V9_0_0__Example_bad.sql
 Line 5: ❌ Table 'bad_example_table' must have a primary key [require_primary_key]
 Line 5: ❌ Tables must have audit columns (created_at, updated_at, created_by) [require_audit_columns]
 Line 12: ⚠️ Avoid SELECT * - explicitly list required columns [no_select_star]
@@ -64,15 +64,15 @@ A detailed comment is posted with:
 ### Issues Found
 
 ❌ **require_primary_key** (Line 5)
-📄 `migrations/examples/V9_0_0__Example_bad.sql`
+📄 `examples/migrations/V9_0_0__Example_bad.sql`
 > Table 'bad_example_table' must have a primary key
 
 ❌ **require_audit_columns** (Line 5)
-📄 `migrations/examples/V9_0_0__Example_bad.sql`
+📄 `examples/migrations/V9_0_0__Example_bad.sql`
 > Tables must have audit columns (created_at, updated_at, created_by)
 
 ⚠️ **no_select_star** (Line 12)
-📄 `migrations/examples/V9_0_0__Example_bad.sql`
+📄 `examples/migrations/V9_0_0__Example_bad.sql`
 > Avoid SELECT * - explicitly list required columns
 
 ---
