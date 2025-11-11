@@ -12,13 +12,17 @@ Detect manual schema changes outside of migrations.
 ### 1. Apply All Migrations
 
 ```bash
-dblift migrate --config config/dblift-postgresql.yaml
+dblift migrate \
+  --config config/dblift-postgresql.yaml \
+  --exclude-tags security
 ```
 
 ### 2. Check for Drift (Clean State)
 
 ```bash
-dblift diff --config config/dblift-postgresql.yaml
+dblift diff \
+  --config config/dblift-postgresql.yaml \
+  --exclude-tags security
 ```
 
 **Expected Output:**
@@ -62,7 +66,9 @@ CHECK (contact_email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}$');
 ### 4. Detect Drift
 
 ```bash
-dblift diff --config config/dblift-postgresql.yaml
+dblift diff \
+  --config config/dblift-postgresql.yaml \
+  --exclude-tags security
 ```
 
 **Expected Output:**
@@ -98,6 +104,7 @@ Summary:
 ```bash
 dblift diff \
   --config config/dblift-postgresql.yaml \
+  --exclude-tags security \
   --log-format html \
   --log-dir reports/
 ```
@@ -109,6 +116,7 @@ Open `reports/dblift_diff_*.html` for interactive report.
 ```bash
 dblift diff \
   --config config/dblift-postgresql.yaml \
+  --exclude-tags security \
   --format json \
   --output drift-report.json
 ```
@@ -120,6 +128,7 @@ If you have legacy tables you want to ignore:
 ```bash
 dblift diff \
   --config config/dblift-postgresql.yaml \
+  --exclude-tags security \
   --ignore-unmanaged
 ```
 
@@ -153,13 +162,13 @@ This runs daily and creates issues when drift is detected.
 ### Strategy 1: Zero Tolerance
 ```yaml
 # Fail on any drift
-dblift diff --config config.yaml --fail-on-drift
+dblift diff --config config.yaml --exclude-tags security --fail-on-drift
 ```
 
 ### Strategy 2: Allow Unmanaged
 ```yaml
 # Allow unmanaged objects (for brownfield)
-dblift diff --config config.yaml --ignore-unmanaged
+dblift diff --config config.yaml --exclude-tags security --ignore-unmanaged
 ```
 
 ### Strategy 3: Baseline and Monitor
@@ -168,7 +177,7 @@ dblift diff --config config.yaml --ignore-unmanaged
 dblift baseline --config config.yaml
 
 # Then monitor for new drift
-dblift diff --config config.yaml --since-baseline
+dblift diff --config config.yaml --exclude-tags security --since-baseline
 ```
 
 ## Fixing Drift
