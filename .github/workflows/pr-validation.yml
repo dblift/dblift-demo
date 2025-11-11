@@ -89,13 +89,15 @@ jobs:
           echo "Files passed to SARIF validator:"
           printf ' - %s\n' "${FILES[@]}"
 
-          docker run --rm \
-            -v "$(pwd):/workspace" \
-            ghcr.io/cmodiano/dblift:latest \
-            validate-sql "${ARGS[@]}" \
-            --dialect postgresql \
-            --rules-file /workspace/config/.dblift_rules.yaml \
-            --format sarif > validation-results.sarif
+          {
+            docker run --rm \
+              -v "$(pwd):/workspace" \
+              ghcr.io/cmodiano/dblift:latest \
+              validate-sql "${ARGS[@]}" \
+              --dialect postgresql \
+              --rules-file /workspace/config/.dblift_rules.yaml \
+              --format sarif
+          } > validation-results.sarif 2> sarif.log
           exit_code=$?
           set -e
 
