@@ -479,18 +479,19 @@ SQL
     psql_exec "Simulate checksum corruption" \
       "UPDATE dblift_schema_history SET checksum = 'corrupted' WHERE version = '1.0.3';"
 
-    if ! run_dblift "Detect corruption via validation" validate \
-      --config "${CONFIG_PATH}" \
-      --scripts ./migrations/features \
-      --scripts ./migrations/performance; then
+    VALIDATE_ARGS=(
+      "--config" "${CONFIG_PATH}"
+      "--scripts" "./migrations/core"
+      "--scripts" "./migrations/features"
+      "--scripts" "./migrations/performance"
+    )
+
+    if ! run_dblift "Detect corruption via validation" validate "${VALIDATE_ARGS[@]}"; then
       append_summary "- ⚠️ Detected checksum mismatch after manual corruption."
     fi
 
-    run_dblift "Repair schema history" repair --config "${CONFIG_PATH}" --repair-checksums
-    run_dblift "Re-validate after repair" validate \
-      --config "${CONFIG_PATH}" \
-      --scripts ./migrations/features \
-      --scripts ./migrations/performance
+    run_dblift "Repair schema history" repair "${VALIDATE_ARGS[@]}"
+    run_dblift "Re-validate after repair" validate "${VALIDATE_ARGS[@]}"
     append_summary "- ✅ Undo sequence completed with `dblift undo --target-version 1.0.3`."
     append_summary "- ✅ Corruption detected and automatically repaired."
     append_summary "- ✅ Final validation confirms schema integrity."
