@@ -52,7 +52,7 @@ jobs:
             --scripts /workspace/examples/migrations/ \
             --dialect postgresql \
             --rules-file /workspace/config/.dblift_rules.yaml \
-            --format github-annotation
+            --format github-actions
 
       - name: Generate SARIF report with DBLift
         if: steps.changed-files.outputs.any_changed == 'true'
