@@ -48,8 +48,7 @@ jobs:
           docker run --rm \
             -v "$(pwd):/workspace" \
             ghcr.io/cmodiano/dblift:latest \
-            validate-sql /workspace/migrations/ \
-            --scripts /workspace/examples/migrations/ \
+            validate-sql /workspace/migrations/ /workspace/examples/migrations/ \
             --dialect postgresql \
             --rules-file /workspace/config/.dblift_rules.yaml \
             --format github-actions
@@ -64,8 +63,7 @@ jobs:
           docker run --rm \
             -v "$(pwd):/workspace" \
             ghcr.io/cmodiano/dblift:latest \
-            validate-sql /workspace/migrations/ \
-            --scripts /workspace/examples/migrations/ \
+            validate-sql /workspace/migrations/ /workspace/examples/migrations/ \
             --dialect postgresql \
             --rules-file /workspace/config/.dblift_rules.yaml \
             --format sarif > validation-results.sarif
