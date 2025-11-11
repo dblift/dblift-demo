@@ -46,13 +46,13 @@ jobs:
         run: |
           echo "Validating SQL migrations with DBLift..."
           docker run --rm \
-            -v $(pwd)/migrations:/workspace/migrations \
-            -v $(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml \
-            ghcr.io/dblift/dblift:validation-latest \
-            migrations/ \
+            -v "$(pwd):/workspace" \
+            ghcr.io/cmodiano/dblift:latest \
+            validate-sql /workspace/migrations/ \
+            --scripts /workspace/examples/migrations/ \
             --dialect postgresql \
-            --rules-file .dblift_rules.yaml \
-            --format github-annotation || echo "Validation found issues"
+            --rules-file /workspace/config/.dblift_rules.yaml \
+            --format github-annotation
 
       - name: Generate SARIF report with DBLift
         if: steps.changed-files.outputs.any_changed == 'true'
@@ -62,14 +62,19 @@ jobs:
         run: |
           echo "Generating SARIF report..."
           docker run --rm \
-            -v "$(pwd)/migrations:/workspace/migrations" \
-            -v "$(pwd)/examples/migrations:/workspace/examples/migrations" \
-            -v "$(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml" \
-            ghcr.io/dblift/dblift:validation-latest \
-            migrations/ \
+            -v "$(pwd):/workspace" \
+            ghcr.io/cmodiano/dblift:latest \
+            validate-sql /workspace/migrations/ \
+            --scripts /workspace/examples/migrations/ \
             --dialect postgresql \
-            --rules-file .dblift_rules.yaml \
+            --rules-file /workspace/config/.dblift_rules.yaml \
             --format sarif > validation-results.sarif
+
+          if [[ ! -s validation-results.sarif ]]; then
+            echo "SARIF report missing or empty." >&2
+            exit 1
+          fi
+
           echo "sarif_path=validation-results.sarif" >> "$GITHUB_OUTPUT"
 
       - name: Upload SARIF to GitHub Security
