@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'migrations/**/*.sql'
+      - 'examples/migrations/**/*.sql'
       - 'config/.dblift_rules.yaml'
     types: [opened, synchronize, reopened]
 
@@ -30,6 +31,7 @@ jobs:
         with:
           files: |
             migrations/**/*.sql
+            examples/migrations/**/*.sql
 
       - name: List changed migrations
         if: steps.changed-files.outputs.any_changed == 'true'
@@ -45,9 +47,10 @@ jobs:
           echo "Validating SQL migrations with DBLift..."
           docker run --rm \
             -v $(pwd)/migrations:/workspace/migrations \
+            -v $(pwd)/examples/migrations:/workspace/examples/migrations \
             -v $(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml \
             ghcr.io/dblift/dblift:validation-latest \
-            migrations/ \
+            migrations/ /workspace/examples/migrations/ \
             --dialect postgresql \
             --rules-file .dblift_rules.yaml \
             --format github-annotation || echo "Validation found issues"
@@ -59,9 +62,10 @@ jobs:
           echo "Generating SARIF report..."
           docker run --rm \
             -v $(pwd)/migrations:/workspace/migrations \
+            -v $(pwd)/examples/migrations:/workspace/examples/migrations \
             -v $(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml \
             ghcr.io/dblift/dblift:validation-latest \
-            migrations/ \
+            migrations/ /workspace/examples/migrations/ \
             --dialect postgresql \
             --rules-file .dblift_rules.yaml \
             --format sarif > validation-results.sarif || echo "SARIF generation completed"
