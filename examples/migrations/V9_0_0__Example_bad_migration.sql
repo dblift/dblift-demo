@@ -2,7 +2,7 @@
 -- This migration intentionally contains validation errors for CI/CD demo
 -- DO NOT USE IN PRODUCTION
 
--- Violation 1: Table without primary key
+-- Violation 1: Table without primary ke
 -- Violation 2: Missing audit columns (created_at, updated_at, created_by)
 CREATE TABLE bad_example_table (
     name VARCHAR(100),
