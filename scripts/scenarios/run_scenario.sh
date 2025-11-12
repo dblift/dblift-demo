@@ -917,12 +917,12 @@ SQL
     cat > "${MODULE_ROOT_HOST}/analytics/migrations/V3_2_0__Create_analytics_views[analytics].sql" <<'SQL'
 DROP VIEW IF EXISTS analytics_orders_summary;
 CREATE OR REPLACE VIEW analytics_orders_summary AS
-SELECT c.name AS customer_name,
+SELECT c.contact_name AS customer_name,
        COUNT(o.id) AS total_orders,
        SUM(o.total_amount) AS total_amount
 FROM customers c
 LEFT JOIN orders o ON c.id = o.customer_id
-GROUP BY c.name;
+GROUP BY c.contact_name;
 SQL
 
     MULTI_CONFIG_HOST="${LOG_ROOT}/dblift-multi-module.yaml"
