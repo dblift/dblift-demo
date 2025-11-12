@@ -583,6 +583,7 @@ SQL
 
     if ! run_dblift "Generate HTML drift report" diff \
       "${DIFF_COMMON_ARGS[@]}" \
+      --scripts "${FLATTENED_MIGRATIONS_CONTAINER}" \
       --log-format html \
       --log-dir "${REPORT_DIR_CONTAINER}"; then
       append_summary "- ℹ️ HTML drift report generated with drift differences (expected)."
@@ -593,6 +594,7 @@ SQL
 
     if ! run_dblift "Generate JSON drift report" diff \
       "${DIFF_COMMON_ARGS[@]}" \
+      --scripts "${FLATTENED_MIGRATIONS_CONTAINER}" \
       --format json \
       --output "${DRIFT_JSON_CONTAINER}"; then
       append_summary "- ℹ️ JSON drift report generated with drift differences (expected)."
