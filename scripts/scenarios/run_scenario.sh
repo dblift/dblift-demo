@@ -615,7 +615,19 @@ SQL
     append_summary ""
 
     run_command "List available workflows" ls -1 .github/workflows
+    WORKFLOW_LIST_LOG="${LAST_LOG_PATH}"
+    if [[ -f "${WORKFLOW_LIST_LOG}" ]]; then
+      WORKFLOW_COUNT=$(wc -l < "${WORKFLOW_LIST_LOG}" | tr -d '[:space:]')
+      [[ -z "${WORKFLOW_COUNT}" ]] && WORKFLOW_COUNT=0
+      show_log_excerpt "📚 Workflow catalog (${WORKFLOW_COUNT} files)" "${WORKFLOW_LIST_LOG}" 80
+      append_summary "- ℹ️ Detected ${WORKFLOW_COUNT} workflow files under \".github/workflows\"."
+    fi
+
     run_command "Show SQL validation workflow" cat .github/workflows/validate-sql.yml
+    VALIDATION_WORKFLOW_LOG="${LAST_LOG_PATH}"
+    if [[ -f "${VALIDATION_WORKFLOW_LOG}" ]]; then
+      show_log_excerpt "🗂️ validate-sql workflow (first lines)" "${VALIDATION_WORKFLOW_LOG}" 80
+    fi
 
     SARIF_DIR_HOST="${LOG_ROOT}/sarif"
     SARIF_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/sarif"
@@ -625,12 +637,18 @@ SQL
       --rules-file config/.dblift_rules.yaml \
       --log-format sarif \
       --log-dir "${SARIF_DIR_CONTAINER}"
+    SARIF_COMMAND_LOG="${LAST_LOG_PATH}"
+    if [[ -f "${SARIF_COMMAND_LOG}" ]]; then
+      show_log_excerpt "🧾 validate-sql execution log" "${SARIF_COMMAND_LOG}" 80
+    fi
 
     SARIF_GENERATED_FILE="$(find "${SARIF_DIR_HOST}" -maxdepth 1 -name '*.sarif' | head -n 1 || true)"
     if [[ -n "${SARIF_GENERATED_FILE}" ]]; then
       run_command "Preview SARIF report headers" head -n 40 "${SARIF_GENERATED_FILE}"
       append_summary "- ✅ Workflow inventory and sample YAML surfaced above."
       append_summary "- ✅ SARIF report generated via `validate-sql`; header preview included."
+      RELATIVE_SARIF_PATH="${SARIF_GENERATED_FILE#${WORKSPACE}/}"
+      append_summary "- 📁 SARIF saved to \`${RELATIVE_SARIF_PATH}\`."
     else
       append_summary "- ⚠️ Expected SARIF output not found under ${SARIF_DIR_HOST}."
     fi
