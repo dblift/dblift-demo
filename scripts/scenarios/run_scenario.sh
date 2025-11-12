@@ -1049,6 +1049,7 @@ EOF
        --config "${CONFIG_PATH}" \
        --migration-path "${FLATTENED_MIGRATIONS_CONTAINER}" \
        --managed-only \
+       -- log-level DEBUG \
        --output "${EXPORT_DIR_CONTAINER}/managed.sql"
      MANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
      show_log_excerpt "📄 Export managed schema" "${MANAGED_EXPORT_LOG}" 80
@@ -1058,6 +1059,7 @@ EOF
        --config "${CONFIG_PATH}" \
        --migration-path "${FLATTENED_MIGRATIONS_CONTAINER}" \
        --unmanaged-only \
+       --log-level DEBUG \
        --output "${EXPORT_DIR_CONTAINER}/unmanaged.sql"
      UNMANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
      show_log_excerpt "📄 Export unmanaged schema" "${UNMANAGED_EXPORT_LOG}" 80
