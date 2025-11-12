@@ -915,7 +915,8 @@ CREATE TABLE IF NOT EXISTS crm_contacts (
 SQL
 
     cat > "${MODULE_ROOT_HOST}/analytics/migrations/V3_2_0__Create_analytics_views[analytics].sql" <<'SQL'
-CREATE VIEW IF NOT EXISTS analytics_orders_summary AS
+DROP VIEW IF EXISTS analytics_orders_summary;
+CREATE OR REPLACE VIEW analytics_orders_summary AS
 SELECT c.name AS customer_name,
        COUNT(o.id) AS total_orders,
        SUM(o.total_amount) AS total_amount
@@ -949,6 +950,26 @@ logging:
   log_format: "text"
   log_dir: "${MODULE_ROOT_CONTAINER}/logs"
 EOF
+
+    append_summary "### Module directory layout"
+    append_summary ""
+    append_summary '```'
+    if [[ -d "${MODULE_ROOT_HOST}" ]]; then
+      while IFS= read -r line; do
+        append_summary "${line}"
+      done < <(cd "${MODULE_ROOT_HOST}" && find . -maxdepth 2 -type f | sort)
+    fi
+    append_summary '```'
+    append_summary ""
+
+    append_summary "### Multi-module config"
+    append_summary ""
+    append_summary '```yaml'
+    while IFS= read -r line; do
+      append_summary "${line}"
+    done < "${MULTI_CONFIG_HOST}"
+    append_summary '```'
+    append_summary ""
 
     run_dblift "Deploy all modules" migrate --config "${MULTI_CONFIG_CONTAINER}"
     DEPLOY_ALL_LOG="${LAST_LOG_PATH}"
