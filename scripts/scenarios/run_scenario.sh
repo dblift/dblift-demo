@@ -650,11 +650,11 @@ SQL
     run_dblift "Generate SARIF validation report" validate-sql "${DEMO_VALIDATION_TARGETS[@]}" \
       --dialect postgresql \
       --rules-file config/.dblift_rules.yaml \
-      --format sarif \
-      --output "${SARIF_DIR_CONTAINER}/${SARIF_BASENAME}"
+      --format sarif
     SARIF_COMMAND_LOG="${LAST_LOG_PATH}"
     if [[ -f "${SARIF_COMMAND_LOG}" ]]; then
       show_log_excerpt "🧾 validate-sql execution log" "${SARIF_COMMAND_LOG}" 80
+      cp "${SARIF_COMMAND_LOG}" "${SARIF_DIR_HOST}/${SARIF_BASENAME}"
     fi
 
     SARIF_GENERATED_FILE="${SARIF_DIR_HOST}/${SARIF_BASENAME}"
