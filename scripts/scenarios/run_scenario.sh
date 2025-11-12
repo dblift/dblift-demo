@@ -237,7 +237,8 @@ psql_query() {
 
 reset_database() {
   local description="${1:-Reset database schema}"
-  local sql="DROP SCHEMA IF EXISTS ${DB_SCHEMA} CASCADE; CREATE SCHEMA ${DB_SCHEMA};"
+  local target_schema="${2:-${DB_SCHEMA}}"
+  local sql="DROP SCHEMA IF EXISTS ${target_schema} CASCADE; CREATE SCHEMA ${target_schema};"
   psql_exec "${description}" "${sql}"
 }
 
@@ -988,6 +989,14 @@ EOF
     show_log_excerpt "🏷️ inventory-only deploy" "${INVENTORY_ONLY_LOG}" 60
     append_summary "- ℹ️ Inventory-only run after full deploy reports \"No pending migrations\" (expected)."
 
+    psql_exec "Show CRM-tagged migrations from history" \
+      "SELECT version, description, state, installed_on \
+         FROM dblift_schema_history \
+        WHERE description LIKE '%[crm]%' \
+        ORDER BY installed_on;"
+    CRM_STATUS_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "📋 CRM history entries" "${CRM_STATUS_LOG}" 80
+
     run_dblift "Validate inventory module migrations" validate-sql \
       "${MODULE_ROOT_CONTAINER}/inventory/migrations/" \
       --dialect postgresql \
@@ -1005,10 +1014,10 @@ EOF
     append_summary "## Overview"
     append_summary "- **Goal**: Showcase targeted schema exports for managed vs. unmanaged objects."
     append_summary "- **Focus**: Mix manual (legacy) tables with migration-managed ones, then export each subset."
-    append_summary "- **Key Outputs**: Managed-only and unmanaged-only SQL dumps saved as run artifacts."
+    append_summary "- **Key Outputs**: Managed-only and unmanaged-only SQL dumps saved as run artifacts from a clean demo schema."
     append_summary ""
     append_summary "## Execution Plan"
-    append_summary "- 🔁 Reset the schema to start from a known baseline."
+    append_summary "- 🔁 Reset the dedicated export schema to start from a known baseline."
     append_summary "- ✍️ Create a legacy table manually to mimic unmanaged drift."
     append_summary "- ▶️ Apply migrations to bring the schema to the latest managed version."
     append_summary "- 💾 Export managed objects with `--managed-only`."
@@ -1016,24 +1025,46 @@ EOF
     append_summary ""
 
     wait_for_db
-    reset_database "Reset schema for export demo"
+
+    EXPORT_SCHEMA="export_demo"
+    EXPORT_DIR_HOST="${LOG_ROOT}/exports"
+    EXPORT_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/exports"
+    mkdir -p "${EXPORT_DIR_HOST}"
+    reset_database "Reset schema for export demo" "${EXPORT_SCHEMA}"
+
+    EXPORT_CONFIG_HOST="${LOG_ROOT}/dblift-export.yaml"
+    EXPORT_CONFIG_CONTAINER="./logs/scenario-${SCENARIO_ID}/dblift-export.yaml"
+    cat > "${EXPORT_CONFIG_HOST}" <<EOF
+database:
+  url: "${DB_URL_DEFAULT}"
+  schema: "${EXPORT_SCHEMA}"
+  username: "${DB_USER}"
+  password: "${DB_PASSWORD}"
+
+migrations:
+  directory: "./migrations"
+  recursive: true
+
+log_format: "text"
+EOF
+    run_command "Show export scenario config" cat "${EXPORT_CONFIG_HOST}"
+    EXPORT_CONFIG_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🧾 Export scenario DBLift config" "${EXPORT_CONFIG_LOG}" 80
 
     psql_exec "Create unmanaged audit table" \
-      "CREATE TABLE IF NOT EXISTS legacy_audit_log (
+      "CREATE TABLE IF NOT EXISTS ${EXPORT_SCHEMA}.legacy_audit_log (
          id SERIAL PRIMARY KEY,
          event_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
          payload JSONB NOT NULL
        );
-       COMMENT ON TABLE legacy_audit_log IS 'Manually created to simulate brownfield drift';"
+       COMMENT ON TABLE ${EXPORT_SCHEMA}.legacy_audit_log IS 'Manually created to simulate brownfield drift';"
 
-    run_dblift "Apply migrations (managed objects)" migrate --config "${CONFIG_PATH}"
-
-    EXPORT_DIR_HOST="${LOG_ROOT}/exports"
-    EXPORT_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/exports"
-    mkdir -p "${EXPORT_DIR_HOST}"
+    run_dblift "Apply migrations (managed objects)" migrate --config "${EXPORT_CONFIG_CONTAINER}"
+    MIGRATE_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🚀 Migrate managed schema" "${MIGRATE_LOG}" 80
 
     run_dblift "Export managed schema (ignore unmanaged)" export-schema \
-      --config "${CONFIG_PATH}" \
+      --config "${EXPORT_CONFIG_CONTAINER}" \
       --managed-only \
       --output "${EXPORT_DIR_CONTAINER}/managed.sql"
     MANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
@@ -1041,7 +1072,7 @@ EOF
     run_command "Preview managed export (first 40 lines)" head -n 40 "${EXPORT_DIR_HOST}/managed.sql"
 
     run_dblift "Export unmanaged schema only" export-schema \
-      --config "${CONFIG_PATH}" \
+      --config "${EXPORT_CONFIG_CONTAINER}" \
       --unmanaged-only \
       --output "${EXPORT_DIR_CONTAINER}/unmanaged.sql"
     UNMANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
