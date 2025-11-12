@@ -635,7 +635,7 @@ SQL
     run_dblift "Generate SARIF validation report" validate-sql migrations/ \
       --dialect postgresql \
       --rules-file config/.dblift_rules.yaml \
-      --log-format sarif \
+      --format sarif \
       --log-dir "${SARIF_DIR_CONTAINER}"
     SARIF_COMMAND_LOG="${LAST_LOG_PATH}"
     if [[ -f "${SARIF_COMMAND_LOG}" ]]; then
