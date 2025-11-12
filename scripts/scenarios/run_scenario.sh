@@ -689,30 +689,65 @@ SQL
     wait_for_db
     reset_database "Reset schema for tag deployment demo"
 
+    append_summary "### Step 1 · Core schema without feature tags"
+    append_summary ""
+    append_summary "Command"
+    append_summary '```bash'
+    append_summary "dblift migrate --config ${CONFIG_PATH} --exclude-tags user-mgmt,notifications,analytics,security"
+    append_summary '```'
+    append_summary ""
     run_dblift "Apply core schema (exclude feature tags)" migrate \
       --config "${CONFIG_PATH}" \
       --exclude-tags user-mgmt,notifications,analytics,security
     CORE_ONLY_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🚀 Core deployment (tags excluded)" "${CORE_ONLY_LOG}" 80
 
+    append_summary "### Step 2 · Deploy user management features"
+    append_summary ""
+    append_summary "Command"
+    append_summary '```bash'
+    append_summary "dblift migrate --config ${CONFIG_PATH} --tags user-mgmt"
+    append_summary '```'
+    append_summary ""
     run_dblift "Deploy user management features (tags=user-mgmt)" migrate \
       --config "${CONFIG_PATH}" \
       --tags user-mgmt
     USER_MGMT_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🏷️ user-mgmt rollout" "${USER_MGMT_LOG}" 40
 
+    append_summary "### Step 3 · Deploy notifications"
+    append_summary ""
+    append_summary "Command"
+    append_summary '```bash'
+    append_summary "dblift migrate --config ${CONFIG_PATH} --tags notifications"
+    append_summary '```'
+    append_summary ""
     run_dblift "Deploy notifications (tags=notifications)" migrate \
       --config "${CONFIG_PATH}" \
       --tags notifications
     NOTIFICATIONS_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🏷️ notifications rollout" "${NOTIFICATIONS_LOG}" 40
 
+    append_summary "### Step 4 · Inspect security tag status"
+    append_summary ""
+    append_summary "Command"
+    append_summary '```bash'
+    append_summary "dblift info --config ${CONFIG_PATH} --tags security"
+    append_summary '```'
+    append_summary ""
     run_dblift "Check security tag status" info \
       --config "${CONFIG_PATH}" \
       --tags security
     SECURITY_STATUS_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🔐 security tag status" "${SECURITY_STATUS_LOG}" 60
 
+    append_summary "### Step 5 · Deploy everything except analytics"
+    append_summary ""
+    append_summary "Command"
+    append_summary '```bash'
+    append_summary "dblift migrate --config ${CONFIG_PATH} --exclude-tags analytics"
+    append_summary '```'
+    append_summary ""
     run_dblift "Deploy everything except analytics" migrate \
       --config "${CONFIG_PATH}" \
       --exclude-tags analytics
