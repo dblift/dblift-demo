@@ -631,6 +631,7 @@ SQL
 
     SARIF_DIR_HOST="${LOG_ROOT}/sarif"
     SARIF_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/sarif"
+    SARIF_BASENAME="scenario-06-validation.sarif"
     mkdir -p "${SARIF_DIR_HOST}"
     DEMO_VALIDATION_TARGETS=(
       "examples/migrations/V9_0_0__Example_bad_migration.sql"
@@ -650,19 +651,23 @@ SQL
       --dialect postgresql \
       --rules-file config/.dblift_rules.yaml \
       --format sarif \
-      --log-dir "${SARIF_DIR_CONTAINER}"
+      --output "${SARIF_DIR_CONTAINER}/${SARIF_BASENAME}"
     SARIF_COMMAND_LOG="${LAST_LOG_PATH}"
     if [[ -f "${SARIF_COMMAND_LOG}" ]]; then
       show_log_excerpt "🧾 validate-sql execution log" "${SARIF_COMMAND_LOG}" 80
     fi
 
-    SARIF_GENERATED_FILE="$(find "${SARIF_DIR_HOST}" -maxdepth 1 -name '*.sarif' | head -n 1 || true)"
+    SARIF_GENERATED_FILE="${SARIF_DIR_HOST}/${SARIF_BASENAME}"
     if [[ -n "${SARIF_GENERATED_FILE}" ]]; then
-      run_command "Preview SARIF report headers" head -n 40 "${SARIF_GENERATED_FILE}"
-      append_summary "- ✅ Workflow inventory and sample YAML surfaced above."
-      append_summary "- ✅ SARIF report generated via `validate-sql`; header preview included."
-      RELATIVE_SARIF_PATH="${SARIF_GENERATED_FILE#${WORKSPACE}/}"
-      append_summary "- 📁 SARIF saved to \`${RELATIVE_SARIF_PATH}\`."
+      if [[ -f "${SARIF_GENERATED_FILE}" ]]; then
+        run_command "Preview SARIF report headers" head -n 40 "${SARIF_GENERATED_FILE}"
+        append_summary "- ✅ Workflow inventory and sample YAML surfaced above."
+        append_summary "- ✅ SARIF report generated via `validate-sql`; header preview included."
+        RELATIVE_SARIF_PATH="${SARIF_GENERATED_FILE#${WORKSPACE}/}"
+        append_summary "- 📁 SARIF saved to \`${RELATIVE_SARIF_PATH}\`."
+      else
+        append_summary "- ⚠️ Expected SARIF output not found at ${SARIF_GENERATED_FILE}."
+      fi
     else
       append_summary "- ⚠️ Expected SARIF output not found under ${SARIF_DIR_HOST}."
     fi
