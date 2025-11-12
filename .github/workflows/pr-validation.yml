@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'migrations/**/*.sql'
+      - 'examples/migrations/**/*.sql'
       - 'config/.dblift_rules.yaml'
     types: [opened, synchronize, reopened]
 
@@ -17,7 +18,7 @@ jobs:
   validate-sql:
     name: Validate SQL Migrations
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,6 +31,7 @@ jobs:
         with:
           files: |
             migrations/**/*.sql
+            examples/migrations/**/*.sql
 
       - name: List changed migrations
         if: steps.changed-files.outputs.any_changed == 'true'
@@ -43,31 +45,123 @@ jobs:
         continue-on-error: true
         run: |
           echo "Validating SQL migrations with DBLift..."
+          mapfile -t FILES < <(echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | sed '/^$/d')
+          if [[ ${#FILES[@]} -eq 0 ]]; then
+            echo "No SQL files detected; skipping validation."
+            exit 0
+          fi
+
+          ARGS=()
+          for file in "${FILES[@]}"; do
+            ARGS+=("/workspace/${file}")
+          done
+
+          echo "Files passed to validator:"
+          printf ' - %s\n' "${FILES[@]}"
+
           docker run --rm \
-            -v $(pwd)/migrations:/workspace/migrations \
-            -v $(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml \
-            ghcr.io/dblift/dblift:validation-latest \
-            migrations/ \
+            -v "$(pwd):/workspace" \
+            ghcr.io/cmodiano/dblift:latest \
+            validate-sql "${ARGS[@]}" \
             --dialect postgresql \
-            --rules-file .dblift_rules.yaml \
-            --format github-annotation || echo "Validation found issues"
+            --rules-file /workspace/config/.dblift_rules.yaml \
+            --format github-actions || echo "Validation found issues (see output above)."
 
       - name: Generate SARIF report with DBLift
         if: steps.changed-files.outputs.any_changed == 'true'
         continue-on-error: true
         run: |
           echo "Generating SARIF report..."
-          docker run --rm \
-            -v $(pwd)/migrations:/workspace/migrations \
-            -v $(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml \
-            ghcr.io/dblift/dblift:validation-latest \
-            migrations/ \
-            --dialect postgresql \
-            --rules-file .dblift_rules.yaml \
-            --format sarif > validation-results.sarif || echo "SARIF generation completed"
+          mapfile -t FILES < <(echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | sed '/^$/d')
+          if [[ ${#FILES[@]} -eq 0 ]]; then
+            echo "No SQL files detected; skipping SARIF generation."
+            exit 0
+          fi
+
+          ARGS=()
+          for file in "${FILES[@]}"; do
+            ARGS+=("/workspace/${file}")
+          done
+
+          echo "Files passed to SARIF validator:"
+          printf ' - %s\n' "${FILES[@]}"
+
+          set +e
+          {
+            docker run --rm \
+              -v "$(pwd):/workspace" \
+              ghcr.io/cmodiano/dblift:latest \
+              validate-sql "${ARGS[@]}" \
+              --dialect postgresql \
+              --rules-file /workspace/config/.dblift_rules.yaml \
+              --format sarif
+          } > validation-results.sarif 2> sarif.log
+          exit_code=$?
+          set -e
+
+          if [[ $exit_code -ne 0 ]]; then
+            echo "::warning::validate-sql exited with code ${exit_code}; SARIF output may be incomplete."
+          fi
+
+      - name: Normalize SARIF output
+        if: steps.changed-files.outputs.any_changed == 'true'
+        id: sarif
+        shell: python
+        run: |
+          import json
+          import os
+          import sys
+          from pathlib import Path
+          from urllib.parse import quote
+
+          sarif_path = Path("validation-results.sarif")
+          output_path = Path(os.environ["GITHUB_OUTPUT"])
+
+          def write_output(value: str) -> None:
+              with output_path.open("a", encoding="utf-8") as fh:
+                  fh.write(f"sarif_path={value}\n")
+
+          if not sarif_path.exists() or sarif_path.stat().st_size == 0:
+              print("::warning::SARIF report missing or empty; skipping upload/comment.")
+              if sarif_path.exists():
+                  sarif_path.unlink()
+              write_output("")
+              sys.exit(0)
+
+          raw = sarif_path.read_text(encoding="utf-8")
+          start = raw.find("{")
+          end = raw.rfind("}")
+          if start == -1 or end == -1:
+              print("::warning::SARIF payload missing JSON object.")
+              write_output("")
+              sys.exit(0)
+
+          clean = raw[start:end + 1]
+          try:
+              data = json.loads(clean)
+          except json.JSONDecodeError as exc:
+              print(f"::warning::Invalid SARIF JSON after cleanup: {exc}")
+              write_output("")
+              sys.exit(0)
+
+          prefix = "/workspace/"
+          for run in data.get("runs", []):
+              for result in run.get("results", []):
+                  for location in result.get("locations", []):
+                      physical = location.get("physicalLocation") or {}
+                      artifact = physical.get("artifactLocation") or {}
+                      uri = artifact.get("uri")
+                      if not uri:
+                          continue
+                      rel = uri[len(prefix):] if uri.startswith(prefix) else uri
+                      artifact["uri"] = quote(rel, safe="/._-")
+                      artifact["uriBaseId"] = "ROOTPATH"
+
+          sarif_path.write_text(json.dumps(data), encoding="utf-8")
+          write_output(str(sarif_path))
 
       - name: Upload SARIF to GitHub Security
-        if: steps.changed-files.outputs.any_changed == 'true'
+        if: steps.changed-files.outputs.any_changed == 'true' && steps.sarif.outputs.sarif_path != ''
         uses: github/codeql-action/upload-sarif@v3
         continue-on-error: true
         with:
@@ -75,23 +169,22 @@ jobs:
           category: sql-validation
 
       - name: Create PR comment with validation results
-        if: steps.changed-files.outputs.any_changed == 'true'
+        if: steps.changed-files.outputs.any_changed == 'true' && steps.sarif.outputs.sarif_path != ''
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            
-            // Read SARIF results
+
             const sarif = JSON.parse(fs.readFileSync('validation-results.sarif', 'utf8'));
             const results = sarif.runs[0].results || [];
-            
+
             const errors = results.filter(r => r.level === 'error').length;
             const warnings = results.filter(r => r.level === 'warning').length;
             const infos = results.filter(r => r.level === 'note' || r.level === 'info').length;
-            
+
             let status = '✅ All validations passed!';
             let emoji = '✅';
-            
+
             if (errors > 0) {
               status = `❌ ${errors} error(s) found`;
               emoji = '❌';
@@ -99,7 +192,7 @@ jobs:
               status = `⚠️ ${warnings} warning(s) found`;
               emoji = '⚠️';
             }
-            
+
             let comment = `## ${emoji} SQL Validation Results\n\n`;
             comment += `**Status:** ${status}\n\n`;
             comment += `| Severity | Count |\n`;
@@ -107,27 +200,36 @@ jobs:
             comment += `| Errors   | ${errors} |\n`;
             comment += `| Warnings | ${warnings} |\n`;
             comment += `| Info     | ${infos} |\n\n`;
-            
+
             if (results.length > 0) {
               comment += `### Issues Found\n\n`;
-              
+
               results.forEach(result => {
                 const severity = result.level === 'error' ? '❌' : result.level === 'warning' ? '⚠️' : 'ℹ️';
                 const location = result.locations[0].physicalLocation;
-                const file = location.artifactLocation.uri;
+                const artifact = location.artifactLocation || {};
+                const rawUri = artifact.uri || '';
+                let file;
+                try {
+                  file = decodeURIComponent(rawUri);
+                } catch {
+                  file = rawUri;
+                }
+                if (artifact.uriBaseId === 'ROOTPATH') {
+                  file = file.replace(/^ROOTPATH[\\/]/, '');
+                }
                 const line = location.region.startLine;
-                
+
                 comment += `${severity} **${result.ruleId}** (Line ${line})\n`;
                 comment += `📄 \`${file}\`\n`;
                 comment += `> ${result.message.text}\n\n`;
               });
             }
-            
+
             comment += `\n---\n`;
             comment += `💡 **Tip:** Check the [Security](../../security/code-scanning) tab for detailed SARIF analysis.\n`;
             comment += `📖 Review our [validation rules](../blob/main/config/.dblift_rules.yaml) for more information.`;
-            
-            // Post comment
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
