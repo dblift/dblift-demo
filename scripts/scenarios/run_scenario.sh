@@ -1047,7 +1047,7 @@ EOF
      mkdir -p "${EXPORT_DIR_CONTAINER}"
      run_dblift "Export managed schema (ignore unmanaged)" export-schema \
        --config "${CONFIG_PATH}" \
-       -- "${FLATTENED_MIGRATIONS_CONTAINER}" \
+       --scripts "${FLATTENED_MIGRATIONS_CONTAINER}" \
        --managed-only \
        --output "${EXPORT_DIR_CONTAINER}/managed.sql"
      MANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
