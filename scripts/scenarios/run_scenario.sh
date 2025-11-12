@@ -988,14 +988,6 @@ EOF
     show_log_excerpt "🏷️ inventory-only deploy" "${INVENTORY_ONLY_LOG}" 60
     append_summary "- ℹ️ Inventory-only run after full deploy reports \"No pending migrations\" (expected)."
 
-    psql_exec "Show CRM-tagged migrations from history" \
-      "SELECT version, description, state, installed_on \
-         FROM dblift_schema_history \
-        WHERE description LIKE '%[crm]%' \
-        ORDER BY installed_on;"
-    CRM_STATUS_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "📋 CRM history entries" "${CRM_STATUS_LOG}" 80
-
     run_dblift "Validate inventory module migrations" validate-sql \
       "${MODULE_ROOT_CONTAINER}/inventory/migrations/" \
       --dialect postgresql \
@@ -1019,8 +1011,8 @@ EOF
     append_summary "- 🔁 Reset the schema to start from a known baseline."
     append_summary "- ✍️ Create a legacy table manually to mimic unmanaged drift."
     append_summary "- ▶️ Apply migrations to bring the schema to the latest managed version."
-    append_summary "- 💾 Export managed objects with `--ignore-unmanaged`."
-    append_summary "- 🗂️ Export the unmanaged table with `--only-unmanaged` for baselining."
+    append_summary "- 💾 Export managed objects with `--managed-only`."
+    append_summary "- 🗂️ Export the unmanaged table with `--unmanaged-only` for baselining."
     append_summary ""
 
     wait_for_db
@@ -1040,17 +1032,17 @@ EOF
     EXPORT_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/exports"
     mkdir -p "${EXPORT_DIR_HOST}"
 
-    run_dblift "Export managed schema (ignore unmanaged)" export \
+    run_dblift "Export managed schema (ignore unmanaged)" export-schema \
       --config "${CONFIG_PATH}" \
-      --ignore-unmanaged \
+      --managed-only \
       --output "${EXPORT_DIR_CONTAINER}/managed.sql"
     MANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "📄 Export managed schema" "${MANAGED_EXPORT_LOG}" 80
     run_command "Preview managed export (first 40 lines)" head -n 40 "${EXPORT_DIR_HOST}/managed.sql"
 
-    run_dblift "Export unmanaged schema only" export \
+    run_dblift "Export unmanaged schema only" export-schema \
       --config "${CONFIG_PATH}" \
-      --only-unmanaged \
+      --unmanaged-only \
       --output "${EXPORT_DIR_CONTAINER}/unmanaged.sql"
     UNMANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "📄 Export unmanaged schema" "${UNMANAGED_EXPORT_LOG}" 80
