@@ -1023,6 +1023,13 @@ EOF
      mkdir -p "${EXPORT_DIR_HOST}"
      reset_database "Reset schema for export demo"
  
+    FLATTENED_MIGRATIONS_HOST="${LOG_ROOT}/flattened-migrations"
+    FLATTENED_MIGRATIONS_CONTAINER="./logs/scenario-${SCENARIO_ID}/flattened-migrations"
+    rm -rf "${FLATTENED_MIGRATIONS_HOST}"
+    mkdir -p "${FLATTENED_MIGRATIONS_HOST}"
+    find "${WORKSPACE}/migrations" -type f -name 'V*.sql' -exec cp {} "${FLATTENED_MIGRATIONS_HOST}" \;
+    append_summary "- 🗂️ Flattened versioned migrations into \`${FLATTENED_MIGRATIONS_CONTAINER#./}\` for managed object detection."
+ 
      psql_exec "Create unmanaged audit table" \
        "CREATE TABLE IF NOT EXISTS ${DB_SCHEMA}.legacy_audit_log (
           id SERIAL PRIMARY KEY,
@@ -1040,6 +1047,7 @@ EOF
      mkdir -p "${EXPORT_DIR_CONTAINER}"
      run_dblift "Export managed schema (ignore unmanaged)" export-schema \
        --config "${CONFIG_PATH}" \
+       --migration-path "${FLATTENED_MIGRATIONS_CONTAINER}" \
        --managed-only \
        --output "${EXPORT_DIR_CONTAINER}/managed.sql"
      MANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
@@ -1048,6 +1056,7 @@ EOF
  
      run_dblift "Export unmanaged schema only" export-schema \
        --config "${CONFIG_PATH}" \
+       --migration-path "${FLATTENED_MIGRATIONS_CONTAINER}" \
        --unmanaged-only \
        --output "${EXPORT_DIR_CONTAINER}/unmanaged.sql"
      UNMANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
