@@ -560,7 +560,7 @@ SQL
 
     DIFF_COMMON_ARGS=(
       "--config" "${CONFIG_PATH}"
-      "--migration-path" "./migrations/core"
+      "--scripts" "./migrations/core"
       "--scripts" "./migrations/features"
       "--scripts" "./migrations/performance"
     )
@@ -1047,7 +1047,7 @@ EOF
      mkdir -p "${EXPORT_DIR_CONTAINER}"
      run_dblift "Export managed schema (ignore unmanaged)" export-schema \
        --config "${CONFIG_PATH}" \
-       --migration-path "${FLATTENED_MIGRATIONS_CONTAINER}" \
+       -- "${FLATTENED_MIGRATIONS_CONTAINER}" \
        --managed-only \
        --output "${EXPORT_DIR_CONTAINER}/managed.sql"
      MANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
@@ -1056,7 +1056,7 @@ EOF
  
      run_dblift "Export unmanaged schema only" export-schema \
        --config "${CONFIG_PATH}" \
-       --migration-path "${FLATTENED_MIGRATIONS_CONTAINER}" \
+       --scripts "${FLATTENED_MIGRATIONS_CONTAINER}" \
        --unmanaged-only \
        --output "${EXPORT_DIR_CONTAINER}/unmanaged.sql"
      UNMANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
