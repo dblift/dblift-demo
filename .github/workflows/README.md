@@ -19,6 +19,16 @@ Each demo scenario now has a dedicated workflow that runs the scripted walkthrou
 
 Trigger any scenario from the Actions tab via **Run workflow** to see a narrated execution in the job summary and downloadable logs under `scenario-<id>-logs`.
 
+## PR SQL Validation
+
+The `pr-validation.yml` workflow validates changed migrations on pull requests with the lightweight `ghcr.io/cmodiano/dblift-validation:latest` image.
+
+- Detects changed `.sql` files via `tj-actions/changed-files`
+- Runs the container entrypoint once to generate annotations, SARIF, and a summary in `.dblift/`
+- Uploads SARIF to the Security tab and posts a PR comment summarizing the findings
+- Fails the job after artifacts are collected when validation returns an error
+
+
 ## Required Secrets
 
 Configure these in your repository settings (Settings → Secrets and variables → Actions):
@@ -69,6 +79,8 @@ To run manually:
 - ✅ All permissions configured correctly
 - ✅ Manual triggers available
 - ⏳ Waiting for Docker images to be published
+
+
 
 
 
