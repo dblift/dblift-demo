@@ -46,14 +46,12 @@ jobs:
         run: |
           echo "Validating SQL migrations with DBLift..."
           docker run --rm \
-            -v $(pwd)/migrations:/workspace/migrations \
-            -v $(pwd)/examples/migrations:/workspace/examples/migrations \
-            -v $(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml \
-            ghcr.io/dblift/dblift:validation-latest \
-            migrations/ /workspace/examples/migrations/ \
+            -v "$(pwd):/workspace" \
+            ghcr.io/cmodiano/dblift:latest \
+            validate-sql /workspace/migrations/ /workspace/examples/migrations/ \
             --dialect postgresql \
-            --rules-file .dblift_rules.yaml \
-            --format github-annotation || echo "Validation found issues"
+            --rules-file /workspace/config/.dblift_rules.yaml \
+            --format github-actions || echo "Validation found issues"
 
       - name: Generate SARIF report with DBLift
         if: steps.changed-files.outputs.any_changed == 'true'
@@ -61,13 +59,11 @@ jobs:
         run: |
           echo "Generating SARIF report..."
           docker run --rm \
-            -v $(pwd)/migrations:/workspace/migrations \
-            -v $(pwd)/examples/migrations:/workspace/examples/migrations \
-            -v $(pwd)/config/.dblift_rules.yaml:/workspace/.dblift_rules.yaml \
-            ghcr.io/dblift/dblift:validation-latest \
-            migrations/ /workspace/examples/migrations/ \
+            -v "$(pwd):/workspace" \
+            ghcr.io/cmodiano/dblift:latest \
+            validate-sql /workspace/migrations/ /workspace/examples/migrations/ \
             --dialect postgresql \
-            --rules-file .dblift_rules.yaml \
+            --rules-file /workspace/config/.dblift_rules.yaml \
             --format sarif > validation-results.sarif || echo "SARIF generation completed"
 
       - name: Normalize SARIF output
@@ -127,7 +123,7 @@ jobs:
           category: sql-validation
 
       - name: Create PR comment with validation results
-        if: steps.changed-files.outputs.any_changed == 'true'
+        if: steps.changed-files.outputs.any_changed == 'true' && steps.sarif.outputs.sarif_path
         uses: actions/github-script@v7
         with:
           script: |
@@ -166,7 +162,17 @@ jobs:
               results.forEach(result => {
                 const severity = result.level === 'error' ? '❌' : result.level === 'warning' ? '⚠️' : 'ℹ️';
                 const location = result.locations[0].physicalLocation;
-                const file = location.artifactLocation.uri;
+                const artifact = location.artifactLocation || {};
+                const rawUri = artifact.uri || '';
+                let file;
+                try {
+                  file = decodeURIComponent(rawUri);
+                } catch {
+                  file = rawUri;
+                }
+                if (artifact.uriBaseId === 'ROOTPATH') {
+                  file = file.replace(/^ROOTPATH[\\/]/, '');
+                }
                 const line = location.region.startLine;
                 
                 comment += `${severity} **${result.ruleId}** (Line ${line})\n`;
