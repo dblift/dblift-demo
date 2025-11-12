@@ -951,41 +951,50 @@ logging:
   log_dir: "${MODULE_ROOT_CONTAINER}/logs"
 EOF
 
-    append_summary "### Module directory layout"
-    append_summary ""
-    append_summary '```'
-    if [[ -d "${MODULE_ROOT_HOST}" ]]; then
-      while IFS= read -r line; do
-        append_summary "${line}"
-      done < <(cd "${MODULE_ROOT_HOST}" && find . -maxdepth 2 -type f | sort)
-    fi
-    append_summary '```'
-    append_summary ""
+    run_command "Show module directory layout" bash -c "cd '${MODULE_ROOT_HOST}' && find . -maxdepth 2 -type f | sort"
+    MODULE_LAYOUT_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "📂 Module directory layout" "${MODULE_LAYOUT_LOG}" 80
 
-    append_summary "### Multi-module config"
-    append_summary ""
-    append_summary '```yaml'
-    while IFS= read -r line; do
-      append_summary "${line}"
-    done < "${MULTI_CONFIG_HOST}"
-    append_summary '```'
-    append_summary ""
+    run_command "Show multi-module config" cat "${MULTI_CONFIG_HOST}"
+    MULTI_CONFIG_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🧾 Multi-module DBLift config" "${MULTI_CONFIG_LOG}" 120
+
+    CRM_CONFIG_HOST="${LOG_ROOT}/dblift-crm-module.yaml"
+    CRM_CONFIG_CONTAINER="./logs/scenario-${SCENARIO_ID}/dblift-crm-module.yaml"
+    cat > "${CRM_CONFIG_HOST}" <<EOF
+database:
+  url: "${DB_URL_DEFAULT}"
+  schema: "${DB_SCHEMA}"
+  username: "${DB_USER}"
+  password: "${DB_PASSWORD}"
+
+migrations:
+  directory: "./migrations/core"
+  directories:
+    - "./migrations/features"
+    - "./migrations/performance"
+    - "${MODULE_ROOT_CONTAINER}/crm/migrations"
+  recursive: true
+EOF
 
     run_dblift "Deploy all modules" migrate --config "${MULTI_CONFIG_CONTAINER}"
     DEPLOY_ALL_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "🚀 Full multi-module deploy" "${DEPLOY_ALL_LOG}" 80
+    show_log_excerpt "🚀 Full multi-module deploy" "${DEPLOY_ALL_LOG}" 120
 
     run_dblift "Inventory module-only deploy" migrate \
       --config "${MULTI_CONFIG_CONTAINER}" \
       --tags inventory
     INVENTORY_ONLY_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "🏷️ inventory-only deploy" "${INVENTORY_ONLY_LOG}" 40
+    show_log_excerpt "🏷️ inventory-only deploy" "${INVENTORY_ONLY_LOG}" 60
+    append_summary "- ℹ️ Inventory-only run after full deploy reports \"No pending migrations\" (expected)."
 
-    run_dblift "CRM module status" info \
-      --config "${MULTI_CONFIG_CONTAINER}" \
-      --tags crm
+    psql_exec "Show CRM-tagged migrations from history" \
+      "SELECT version, description, state, installed_on \
+         FROM dblift_schema_history \
+        WHERE description LIKE '%[crm]%' \
+        ORDER BY installed_on;"
     CRM_STATUS_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "📋 CRM status" "${CRM_STATUS_LOG}" 60
+    show_log_excerpt "📋 CRM history entries" "${CRM_STATUS_LOG}" 80
 
     run_dblift "Validate inventory module migrations" validate-sql \
       "${MODULE_ROOT_CONTAINER}/inventory/migrations/" \
@@ -996,6 +1005,7 @@ EOF
 
     append_summary "- ✅ Multi-directory configuration generated on the fly."
     append_summary "- ✅ Module-specific deployments executed with tags."
+    append_summary "- ✅ CRM status inspected via targeted schema-history query."
     append_summary "- ✅ Module migrations validated independently."
     ;;
 
