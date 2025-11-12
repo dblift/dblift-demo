@@ -524,7 +524,7 @@ SQL
     show_log_excerpt "📋 Schema history after migrate" "${LAST_LOG_PATH}" 80
 
     psql_exec "Simulate checksum corruption" \
-      "UPDATE dblift_schema_history SET checksum = 'corrupted' WHERE version = '1.0.3';"
+      "UPDATE ${DB_SCHEMA}.dblift_schema_history SET checksum = 'corrupted' WHERE version = '1.0.3';"
 
     if ! run_dblift "Validate after corruption (expected failure)" validate --config "${CONFIG_PATH}"; then
       append_summary "- ⚠️ Checksum mismatch surfaced via `dblift validate`."
