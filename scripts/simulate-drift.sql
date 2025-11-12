@@ -20,7 +20,7 @@ ALTER TABLE dblift_demo.products ALTER COLUMN is_active SET DEFAULT FALSE;
 
 -- Add an unmanaged constraint
 ALTER TABLE dblift_demo.customers 
-ADD CONSTRAINT IF NOT EXISTS chk_email_format 
+ADD CONSTRAINT chk_email_format 
 CHECK (contact_email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}$');
 
 -- Create unmanaged view
