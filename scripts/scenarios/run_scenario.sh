@@ -30,7 +30,7 @@ DB_NAME="${DB_NAME:-dblift_demo}"
 DB_USER="${DB_USER:-dblift_user}"
 DB_PASSWORD="${DB_PASSWORD:-dblift_pass}"
 DB_SCHEMA="${DB_SCHEMA:-dblift_demo}"
-DB_URL_DEFAULT="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}"
+DB_URL_DEFAULT="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable&currentSchema=${DB_SCHEMA}"
 CONFIG_PATH="${SCENARIO_DB_CONFIG:-config/dblift-postgresql.yaml}"
 
 SCENARIO_TITLE="Scenario ${SCENARIO_ID}"
