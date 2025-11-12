@@ -7,6 +7,9 @@ on:
       - 'examples/migrations/**/*.sql'
       - 'config/.dblift_rules.yaml'
     types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - demo/pr-validation
 
 permissions:
   contents: read
