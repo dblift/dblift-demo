@@ -4,7 +4,7 @@
 
 database:
   url: "jdbc:postgresql://localhost:5432/dblift_demo?sslmode=disable"
-  schema: "public"
+  schema: "dblift_demo"
   username: "dblift_user"
   password: "dblift_pass"
 

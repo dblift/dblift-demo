@@ -29,7 +29,7 @@ DB_PORT="${DB_PORT:-5432}"
 DB_NAME="${DB_NAME:-dblift_demo}"
 DB_USER="${DB_USER:-dblift_user}"
 DB_PASSWORD="${DB_PASSWORD:-dblift_pass}"
-DB_SCHEMA="${DB_SCHEMA:-public}"
+DB_SCHEMA="${DB_SCHEMA:-dblift_demo}"
 DB_URL_DEFAULT="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}"
 CONFIG_PATH="${SCENARIO_DB_CONFIG:-config/dblift-postgresql.yaml}"
 
@@ -989,14 +989,6 @@ EOF
     show_log_excerpt "🏷️ inventory-only deploy" "${INVENTORY_ONLY_LOG}" 60
     append_summary "- ℹ️ Inventory-only run after full deploy reports \"No pending migrations\" (expected)."
 
-    psql_exec "Show CRM-tagged migrations from history" \
-      "SELECT version, description, state, installed_on \
-         FROM dblift_schema_history \
-        WHERE description LIKE '%[crm]%' \
-        ORDER BY installed_on;"
-    CRM_STATUS_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "📋 CRM history entries" "${CRM_STATUS_LOG}" 80
-
     run_dblift "Validate inventory module migrations" validate-sql \
       "${MODULE_ROOT_CONTAINER}/inventory/migrations/" \
       --dialect postgresql \
@@ -1025,64 +1017,47 @@ EOF
     append_summary ""
 
     wait_for_db
-
-    EXPORT_SCHEMA="export_demo"
-    EXPORT_DIR_HOST="${LOG_ROOT}/exports"
-    EXPORT_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/exports"
-    mkdir -p "${EXPORT_DIR_HOST}"
-    reset_database "Reset schema for export demo" "${EXPORT_SCHEMA}"
-
-    EXPORT_CONFIG_HOST="${LOG_ROOT}/dblift-export.yaml"
-    EXPORT_CONFIG_CONTAINER="./logs/scenario-${SCENARIO_ID}/dblift-export.yaml"
-    cat > "${EXPORT_CONFIG_HOST}" <<EOF
-database:
-  url: "${DB_URL_DEFAULT}"
-  schema: "${EXPORT_SCHEMA}"
-  username: "${DB_USER}"
-  password: "${DB_PASSWORD}"
-
-migrations:
-  directory: "./migrations"
-  recursive: true
-
-log_format: "text"
-EOF
-    run_command "Show export scenario config" cat "${EXPORT_CONFIG_HOST}"
-    EXPORT_CONFIG_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "🧾 Export scenario DBLift config" "${EXPORT_CONFIG_LOG}" 80
-
-    psql_exec "Create unmanaged audit table" \
-      "CREATE TABLE IF NOT EXISTS ${EXPORT_SCHEMA}.legacy_audit_log (
-         id SERIAL PRIMARY KEY,
-         event_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-         payload JSONB NOT NULL
-       );
-       COMMENT ON TABLE ${EXPORT_SCHEMA}.legacy_audit_log IS 'Manually created to simulate brownfield drift';"
-
-    run_dblift "Apply migrations (managed objects)" migrate --config "${EXPORT_CONFIG_CONTAINER}"
-    MIGRATE_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "🚀 Migrate managed schema" "${MIGRATE_LOG}" 80
-
-    run_dblift "Export managed schema (ignore unmanaged)" export-schema \
-      --config "${EXPORT_CONFIG_CONTAINER}" \
-      --managed-only \
-      --output "${EXPORT_DIR_CONTAINER}/managed.sql"
-    MANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "📄 Export managed schema" "${MANAGED_EXPORT_LOG}" 80
-    run_command "Preview managed export (first 40 lines)" head -n 40 "${EXPORT_DIR_HOST}/managed.sql"
-
-    run_dblift "Export unmanaged schema only" export-schema \
-      --config "${EXPORT_CONFIG_CONTAINER}" \
-      --unmanaged-only \
-      --output "${EXPORT_DIR_CONTAINER}/unmanaged.sql"
-    UNMANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "📄 Export unmanaged schema" "${UNMANAGED_EXPORT_LOG}" 80
-    run_command "Preview unmanaged export (first 40 lines)" head -n 40 "${EXPORT_DIR_HOST}/unmanaged.sql"
-
-    append_summary "- ✅ Managed export excludes the manually created legacy table."
-    append_summary "- ✅ Unmanaged export captures the legacy table for baselining."
-    append_summary "- 📦 SQL files (`managed.sql`, `unmanaged.sql`) saved under scenario artifacts."
-    ;;
+ 
+     EXPORT_DIR_HOST="${LOG_ROOT}/exports"
+     EXPORT_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/exports"
+     mkdir -p "${EXPORT_DIR_HOST}"
+     reset_database "Reset schema for export demo"
+ 
+     psql_exec "Create unmanaged audit table" \
+       "CREATE TABLE IF NOT EXISTS ${DB_SCHEMA}.legacy_audit_log (
+          id SERIAL PRIMARY KEY,
+          event_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          payload JSONB NOT NULL
+        );
+        COMMENT ON TABLE ${DB_SCHEMA}.legacy_audit_log IS 'Manually created to simulate brownfield drift';"
+ 
+     run_dblift "Apply migrations (managed objects)" migrate \
+       --config "${CONFIG_PATH}"
+ 
+     MIGRATE_LOG="${LAST_LOG_PATH}"
+     show_log_excerpt "🚀 Migrate managed schema" "${MIGRATE_LOG}" 80
+ 
+     mkdir -p "${EXPORT_DIR_CONTAINER}"
+     run_dblift "Export managed schema (ignore unmanaged)" export-schema \
+       --config "${CONFIG_PATH}" \
+       --managed-only \
+       --output "${EXPORT_DIR_CONTAINER}/managed.sql"
+     MANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
+     show_log_excerpt "📄 Export managed schema" "${MANAGED_EXPORT_LOG}" 80
+     run_command "Preview managed export (first 40 lines)" head -n 40 "${EXPORT_DIR_HOST}/managed.sql"
+ 
+     run_dblift "Export unmanaged schema only" export-schema \
+       --config "${CONFIG_PATH}" \
+       --unmanaged-only \
+       --output "${EXPORT_DIR_CONTAINER}/unmanaged.sql"
+     UNMANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
+     show_log_excerpt "📄 Export unmanaged schema" "${UNMANAGED_EXPORT_LOG}" 80
+     run_command "Preview unmanaged export (first 40 lines)" head -n 40 "${EXPORT_DIR_HOST}/unmanaged.sql"
+ 
+     append_summary "- ✅ Managed export excludes the manually created legacy table."
+     append_summary "- ✅ Unmanaged export captures the legacy table for baselining."
+     append_summary "- 📦 SQL files (`managed.sql`, `unmanaged.sql`) saved under scenario artifacts."
+     ;;
 
   *)
     append_summary "❌ Scenario implementation not found."
