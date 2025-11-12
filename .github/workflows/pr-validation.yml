@@ -45,26 +45,63 @@ jobs:
         continue-on-error: true
         run: |
           echo "Validating SQL migrations with DBLift..."
+          mapfile -t FILES < <(echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | sed '/^$/d')
+          if [[ ${#FILES[@]} -eq 0 ]]; then
+            echo "No SQL files detected; skipping validation."
+            exit 0
+          fi
+
+          ARGS=()
+          for file in "${FILES[@]}"; do
+            ARGS+=("/workspace/${file}")
+          done
+
+          echo "Files passed to validator:"
+          printf ' - %s\n' "${FILES[@]}"
+
           docker run --rm \
             -v "$(pwd):/workspace" \
             ghcr.io/cmodiano/dblift:latest \
-            validate-sql /workspace/migrations/ /workspace/examples/migrations/ \
+            validate-sql "${ARGS[@]}" \
             --dialect postgresql \
             --rules-file /workspace/config/.dblift_rules.yaml \
-            --format github-actions || echo "Validation found issues"
+            --format github-actions || echo "Validation found issues (see output above)."
 
       - name: Generate SARIF report with DBLift
         if: steps.changed-files.outputs.any_changed == 'true'
         continue-on-error: true
         run: |
           echo "Generating SARIF report..."
-          docker run --rm \
+          mapfile -t FILES < <(echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | sed '/^$/d')
+          if [[ ${#FILES[@]} -eq 0 ]]; then
+            echo "No SQL files detected; skipping SARIF generation."
+            exit 0
+          fi
+
+          ARGS=()
+          for file in "${FILES[@]}"; do
+            ARGS+=("/workspace/${file}")
+          done
+
+          echo "Files passed to SARIF validator:"
+          printf ' - %s\n' "${FILES[@]}"
+
+          set +e
+          {
+            docker run --rm \
             -v "$(pwd):/workspace" \
             ghcr.io/cmodiano/dblift:latest \
-            validate-sql /workspace/migrations/ /workspace/examples/migrations/ \
+            validate-sql "${ARGS[@]}" \
             --dialect postgresql \
             --rules-file /workspace/config/.dblift_rules.yaml \
-            --format sarif > validation-results.sarif || echo "SARIF generation completed"
+            --format sarif
+          } > validation-results.sarif 2> sarif.log
+          exit_code=$?
+          set -e
+
+          if [[ $exit_code -ne 0 ]]; then
+            echo "::warning::validate-sql exited with code ${exit_code}; SARIF output may be incomplete."
+          fi
 
       - name: Normalize SARIF output
         if: steps.changed-files.outputs.any_changed == 'true'
