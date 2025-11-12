@@ -611,7 +611,7 @@ SQL
     append_summary "## Execution Plan"
     append_summary "- 📚 List available GitHub workflows."
     append_summary "- 🔍 Inspect the `validate-sql` workflow definition."
-    append_summary "- 🧾 Run `dblift validate-sql` to emit SARIF using the default ruleset."
+    append_summary "- 🧾 Run `dblift validate-sql` on curated demo migrations to emit SARIF (full run blocked by parser bug)."
     append_summary ""
 
     run_command "List available workflows" ls -1 .github/workflows
@@ -632,7 +632,21 @@ SQL
     SARIF_DIR_HOST="${LOG_ROOT}/sarif"
     SARIF_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/sarif"
     mkdir -p "${SARIF_DIR_HOST}"
-    run_dblift "Generate SARIF validation report" validate-sql migrations/ \
+    DEMO_VALIDATION_TARGETS=(
+      "examples/migrations/V9_0_0__Example_bad_migration.sql"
+      "examples/migrations/V9_0_1__Example_good_migration.sql"
+    )
+    append_summary "### Demo validation inputs"
+    append_summary ""
+    append_summary '```'
+    for target in "${DEMO_VALIDATION_TARGETS[@]}"; do
+      append_summary "${target}"
+    done
+    append_summary '```'
+    append_summary ""
+    append_summary "_Note: Full migration scan is temporarily limited due to an upstream parser issue with PL/pgSQL blocks._"
+
+    run_dblift "Generate SARIF validation report" validate-sql "${DEMO_VALIDATION_TARGETS[@]}" \
       --dialect postgresql \
       --rules-file config/.dblift_rules.yaml \
       --format sarif \
