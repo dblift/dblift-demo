@@ -574,9 +574,6 @@ SQL
 
     DIFF_COMMON_ARGS=(
       "--config" "${CONFIG_PATH}"
-      "--scripts" "./migrations/core"
-      "--scripts" "./migrations/features"
-      "--scripts" "./migrations/performance"
     )
 
     run_dblift "Initial drift check (expected clean)" diff "${DIFF_COMMON_ARGS[@]}"
@@ -594,6 +591,12 @@ SQL
     REPORT_DIR_HOST="${LOG_ROOT}/reports"
     REPORT_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/reports"
     mkdir -p "${REPORT_DIR_HOST}"
+
+    FLATTENED_MIGRATIONS_HOST="${LOG_ROOT}/flattened-migrations"
+    FLATTENED_MIGRATIONS_CONTAINER="./logs/scenario-${SCENARIO_ID}/flattened-migrations"
+    rm -rf "${FLATTENED_MIGRATIONS_HOST}"
+    mkdir -p "${FLATTENED_MIGRATIONS_HOST}"
+    find "${WORKSPACE}/migrations" -type f -name 'V*.sql' -exec cp {} "${FLATTENED_MIGRATIONS_HOST}" \;
 
     if ! run_dblift "Generate HTML drift report" diff \
       "${DIFF_COMMON_ARGS[@]}" \
