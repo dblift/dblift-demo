@@ -32,6 +32,7 @@ DB_PASSWORD="${DB_PASSWORD:-dblift_pass}"
 DB_SCHEMA="${DB_SCHEMA:-dblift_demo}"
 DB_URL_DEFAULT="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable&currentSchema=${DB_SCHEMA}"
 CONFIG_PATH="${SCENARIO_DB_CONFIG:-config/dblift-postgresql.yaml}"
+DBLIFT_IMAGE="${DBLIFT_IMAGE:-ghcr.io/cmodiano/dblift:latest}"
 
 SCENARIO_TITLE="Scenario ${SCENARIO_ID}"
 if [[ -n "${SCENARIO_NAME}" ]]; then
@@ -112,6 +113,17 @@ run_command() {
   return "${status}"
 }
 
+ensure_dblift_image() {
+  if docker image inspect "${DBLIFT_IMAGE}" >/dev/null 2>&1; then
+    return
+  fi
+  echo "Prefetching ${DBLIFT_IMAGE}..." >&2
+  if ! docker pull "${DBLIFT_IMAGE}" >/dev/null 2>&1; then
+    echo "::error::Failed to pull ${DBLIFT_IMAGE}"
+    exit 1
+  fi
+}
+
 docker_base_args() {
   local overrides=("$@")
   printf '%s\n' \
@@ -132,7 +144,7 @@ run_dblift() {
   local output status
   log_group_start "${title}"
   set +e
-  output="$(docker run $(docker_base_args) ghcr.io/cmodiano/dblift:latest "$@" 2>&1)"
+  output="$(docker run $(docker_base_args) "${DBLIFT_IMAGE}" "$@" 2>&1)"
   status=$?
   set -e
   log_group_end
@@ -149,7 +161,7 @@ run_dblift_custom_db() {
   local output status
   log_group_start "${title}"
   set +e
-  output="$(docker run $(docker_base_args "-e" "DBLIFT_DB_URL=${url}") ghcr.io/cmodiano/dblift:latest "$@" 2>&1)"
+  output="$(docker run $(docker_base_args "-e" "DBLIFT_DB_URL=${url}") "${DBLIFT_IMAGE}" "$@" 2>&1)"
   status=$?
   set -e
   log_group_end
@@ -329,6 +341,8 @@ trap 'on_error $? $LINENO' ERR
 # Scenario implementations
 # ---------------------------------------------------------------------------
 
+ensure_dblift_image
+
 append_summary "# ${SCENARIO_TITLE}"
 append_summary ""
 append_summary "- Workspace: \`${WORKSPACE}\`"
@@ -339,13 +353,13 @@ case "${SCENARIO_ID}" in
   "01")
     append_summary "## Overview"
     append_summary "- **Goal**: Apply the baseline schema to a fresh database."
-    append_summary "- **Focus**: Showcase `dblift migrate` and how migration progress appears in the history table."
+    append_summary '- **Focus**: Showcase `dblift migrate` and how migration progress appears in the history table.'
     append_summary "- **Key Questions**: What migrations are pending? Which ones got applied in this run?"
     append_summary ""
     append_summary "## Timeline"
     append_summary "- 🔍 Inspect the existing schema history (should be empty for a fresh DB)."
-    append_summary "- ▶️ Execute `dblift migrate` using `config/dblift-postgresql.yaml`."
-    append_summary "- ✅ Confirm the new entries recorded in `dblift_schema_history`."
+    append_summary '- ▶️ Execute `dblift migrate` using `config/dblift-postgresql.yaml`.'
+    append_summary '- ✅ Confirm the new entries recorded in `dblift_schema_history`.'
     append_summary ""
 
     wait_for_db
@@ -361,7 +375,7 @@ case "${SCENARIO_ID}" in
     show_log_excerpt "📋 Database status (after migrations)" "${AFTER_INFO_LOG}" 80
     append_summary ""
     append_summary "## Outcome"
-    append_summary "- ✅ Baseline migrations applied with `dblift migrate`."
+    append_summary '- ✅ Baseline migrations applied with `dblift migrate`.'
     append_summary "- 📊 Schema history table updated; new rows listed above."
     append_summary "- 📁 Detailed command logs uploaded as workflow artifacts."
     ;;
@@ -370,7 +384,7 @@ case "${SCENARIO_ID}" in
     append_summary "## Overview"
     append_summary "- **Goal**: Exercise DBLift validation focusing on business and performance rules."
     append_summary "- **Focus**: Disable cosmetic style checks so we can spotlight schema risks."
-    append_summary "- **What You’ll See**: Rule-by-rule severity output using `config/.dblift_rules_performance.yaml`."
+    append_summary '- **What You’ll See**: Rule-by-rule severity output using `config/.dblift_rules_performance.yaml`.'
     append_summary ""
     append_summary "## Timeline"
     append_summary "- ✅ Validate the repository’s existing migrations (expected to pass)."
@@ -457,8 +471,8 @@ SQL
     append_summary "- 🔁 Reset the database to start from a known baseline."
     append_summary "- ▶️ Apply migrations (excluding security) so that undo scripts are available."
     append_summary "- ↩️ Undo the last migration (default behaviour) and reapply it."
-    append_summary "- 🎯 Undo back to version 1.0.2 with `--target-version`, then migrate forward again."
-    append_summary "- 🧷 Undo only version 1.1.0 using `--versions`, then restore it."
+    append_summary '- 🎯 Undo back to version 1.0.2 with `--target-version`, then migrate forward again.'
+    append_summary '- 🧷 Undo only version 1.1.0 using `--versions`, then restore it.'
     append_summary ""
 
     wait_for_db
@@ -493,22 +507,22 @@ SQL
     run_dblift "Show schema history after version-specific undo" info --config "${CONFIG_PATH}"
     show_log_excerpt "📋 Schema history after version-specific undo/reapply" "${LAST_LOG_PATH}" 80
 
-    append_summary "- ✅ `dblift undo` (no extra flags) rolls back the most recent migration."
-    append_summary "- ✅ `dblift undo --target-version` safely rewinds multiple migrations."
-    append_summary "- ✅ `dblift undo --versions` removes specific version(s) without affecting others."
+    append_summary '- ✅ `dblift undo` (no extra flags) rolls back the most recent migration.'
+    append_summary '- ✅ `dblift undo --target-version` safely rewinds multiple migrations.'
+    append_summary '- ✅ `dblift undo --versions` removes specific version(s) without affecting others.'
     ;;
 
   "04")
     append_summary "## Overview"
     append_summary "- **Goal**: Demonstrate checksum corruption detection and repair."
-    append_summary "- **Focus**: Apply migrations, tamper with schema history, validate the failure, then heal it with `dblift repair`."
+    append_summary '- **Focus**: Apply migrations, tamper with schema history, validate the failure, then heal it with `dblift repair`.'
     append_summary "- **Key Outputs**: Validation failure/success logs plus schema history snapshots."
     append_summary ""
     append_summary "## Execution Plan"
     append_summary "- 🔁 Reset schema and apply migrations (excluding security) to reach version 1.3.0."
     append_summary "- 🧪 Manually corrupt the checksum for version 1.0.3."
-    append_summary "- 🚨 Run `dblift validate` to surface the checksum mismatch."
-    append_summary "- 🩺 Execute `dblift repair` and validate again to confirm recovery."
+    append_summary '- 🚨 Run `dblift validate` to surface the checksum mismatch.'
+    append_summary '- 🩺 Execute `dblift repair` and validate again to confirm recovery.'
     append_summary ""
 
     wait_for_db
@@ -527,7 +541,7 @@ SQL
       "UPDATE ${DB_SCHEMA}.dblift_schema_history SET checksum = 'corrupted' WHERE version = '1.0.3';"
 
     if ! run_dblift "Validate after corruption (expected failure)" validate --config "${CONFIG_PATH}"; then
-      append_summary "- ⚠️ Checksum mismatch surfaced via `dblift validate`."
+      append_summary '- ⚠️ Checksum mismatch surfaced via `dblift validate`.'
     fi
     show_log_excerpt "🚨 Validation (checksum mismatch)" "${LAST_LOG_PATH}" 120
 
@@ -536,8 +550,8 @@ SQL
 
     run_dblift "Validate after repair" validate --config "${CONFIG_PATH}"
     show_log_excerpt "✅ Validation (after repair)" "${LAST_LOG_PATH}" 120
-    append_summary "- ✅ Corruption detected and reported by `dblift validate`."
-    append_summary "- ✅ `dblift repair` recalculated checksums and validation now passes."
+    append_summary '- ✅ Corruption detected and reported by `dblift validate`.'
+    append_summary '- ✅ `dblift repair` recalculated checksums and validation now passes.'
     ;;
 
   "05")
@@ -548,9 +562,9 @@ SQL
     append_summary ""
     append_summary "## Execution Plan"
     append_summary "- 🔁 Reset schema and apply migrations with the standard configuration."
-    append_summary "- 📊 Run an initial `dblift diff` to verify the database matches migrations."
-    append_summary "- ✍️ Execute `scripts/simulate-drift.sql` to introduce unmanaged changes."
-    append_summary "- 🚨 Re-run `dblift diff`, expecting failure, and publish formatted reports."
+    append_summary '- 📊 Run an initial `dblift diff` to verify the database matches migrations.'
+    append_summary '- ✍️ Execute `scripts/simulate-drift.sql` to introduce unmanaged changes.'
+    append_summary '- 🚨 Re-run `dblift diff`, expecting failure, and publish formatted reports.'
     append_summary ""
 
     wait_for_db
@@ -613,8 +627,8 @@ SQL
     append_summary ""
     append_summary "## Execution Plan"
     append_summary "- 📚 List available GitHub workflows."
-    append_summary "- 🔍 Inspect the `validate-sql` workflow definition."
-    append_summary "- 🧾 Run `dblift validate-sql` on curated demo migrations to emit SARIF (full run blocked by parser bug)."
+    append_summary '- 🔍 Inspect the `validate-sql` workflow definition.'
+    append_summary '- 🧾 Run `dblift validate-sql` on curated demo migrations to emit SARIF (full run blocked by parser bug).'
     append_summary ""
 
     run_command "List available workflows" ls -1 .github/workflows
@@ -664,8 +678,8 @@ SQL
     if [[ -n "${SARIF_GENERATED_FILE}" ]]; then
       if [[ -f "${SARIF_GENERATED_FILE}" ]]; then
         run_command "Preview SARIF report headers" head -n 40 "${SARIF_GENERATED_FILE}"
-        append_summary "- ✅ Workflow inventory and sample YAML surfaced above."
-        append_summary "- ✅ SARIF report generated via `validate-sql`; header preview included."
+        append_summary '- ✅ Workflow inventory and sample YAML surfaced above.'
+        append_summary '- ✅ SARIF report generated via `validate-sql`; header preview included.'
         RELATIVE_SARIF_PATH="${SARIF_GENERATED_FILE#${WORKSPACE}/}"
         append_summary "- 📁 SARIF saved to \`${RELATIVE_SARIF_PATH}\`."
       else
@@ -685,9 +699,9 @@ SQL
     append_summary "## Execution Plan"
     append_summary "- 🔁 Reset schema to ensure tags control what lands in each step."
     append_summary "- 🏷️ Deploy core migrations while keeping feature-dependent repeatables disabled."
-    append_summary "- 📬 Roll out `user-mgmt`, `notifications`, and `analytics` tags individually."
+    append_summary '- 📬 Roll out `user-mgmt`, `notifications`, and `analytics` tags individually.'
     append_summary "- 🧾 Reapply repeatable views once all dependencies exist."
-    append_summary "- 🔐 Inspect the `security` tag status to show remaining gated features."
+    append_summary '- 🔐 Inspect the `security` tag status to show remaining gated features.'
     append_summary ""
 
     wait_for_db
@@ -793,22 +807,22 @@ EOF
     SECURITY_STATUS_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🔐 security tag status" "${SECURITY_STATUS_LOG}" 60
 
-    append_summary "- ✅ Core-only run excluded all feature tags as expected while repeatables were disabled."
-    append_summary "- ✅ Feature tags (`user-mgmt`, `notifications`, `analytics`) deployed incrementally with clear outputs."
-    append_summary "- ✅ Repeatable views refreshed once prerequisites were in place."
-    append_summary "- ✅ Tag-specific `info` output captured for the security subset, showing gated migrations remain pending."
+    append_summary '- ✅ Core-only run excluded all feature tags as expected while repeatables were disabled.'
+    append_summary '- ✅ Feature tags (`user-mgmt`, `notifications`, `analytics`) deployed incrementally with clear outputs.'
+    append_summary '- ✅ Repeatable views refreshed once prerequisites were in place.'
+    append_summary '- ✅ Tag-specific `info` output captured for the security subset, showing gated migrations remain pending.'
     ;;
 
   "08")
     append_summary "## Overview"
-    append_summary "- **Goal**: Showcase brownfield onboarding using `dblift baseline`."
+    append_summary '- **Goal**: Showcase brownfield onboarding using `dblift baseline`.'
     append_summary "- **Focus**: Record an existing schema, then add new migrations safely."
     append_summary "- **Key Outputs**: Baseline command transcript plus new migration status."
     append_summary ""
     append_summary "## Execution Plan"
     append_summary "- 🏗️ Seed the database manually to emulate a legacy system."
     append_summary "- 🧾 Generate a one-off DBLift config that points to extracted SQL."
-    append_summary "- 📌 Run `dblift baseline` and then add a new migration on top."
+    append_summary '- 📌 Run `dblift baseline` and then add a new migration on top.'
     append_summary ""
 
     wait_for_db
@@ -868,7 +882,7 @@ SQL
     STATUS_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "📋 Brownfield status snapshot" "${STATUS_LOG}" 80
 
-    append_summary "- ✅ Legacy objects captured via `dblift baseline`."
+    append_summary '- ✅ Legacy objects captured via `dblift baseline`.'
     append_summary "- ✅ New migration executed from the managed directory."
     append_summary "- ✅ Status output confirms baseline + incremental change."
     ;;
@@ -1014,8 +1028,8 @@ EOF
     append_summary "- 🔁 Reset the dedicated export schema to start from a known baseline."
     append_summary "- ✍️ Create a legacy table manually to mimic unmanaged drift."
     append_summary "- ▶️ Apply migrations to bring the schema to the latest managed version."
-    append_summary "- 💾 Export managed objects with `--managed-only`."
-    append_summary "- 🗂️ Export the unmanaged table with `--unmanaged-only` for baselining."
+    append_summary '- 💾 Export managed objects with `--managed-only`.'
+    append_summary '- 🗂️ Export the unmanaged table with `--unmanaged-only` for baselining.'
     append_summary ""
 
     wait_for_db
@@ -1067,7 +1081,7 @@ EOF
  
      append_summary "- ✅ Managed export excludes the manually created legacy table."
      append_summary "- ✅ Unmanaged export captures the legacy table for baselining."
-     append_summary "- 📦 SQL files (`managed.sql`, `unmanaged.sql`) saved under scenario artifacts."
+     append_summary '- 📦 SQL files (`managed.sql`, `unmanaged.sql`) saved under scenario artifacts.'
      ;;
 
   *)
