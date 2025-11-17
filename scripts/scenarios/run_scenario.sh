@@ -696,22 +696,22 @@ SQL
   "07")
     append_summary "## Overview"
     append_summary "- **Goal**: Illustrate tag-based deployments for feature toggles."
-    append_summary "- **Focus**: Apply core migrations, roll out tagged features selectively, and inspect status."
-    append_summary "- **Key Outputs**: Command transcripts showing which tags were included or excluded, plus the repeatable objects once all dependencies are active."
+    append_summary "- **Focus**: Deploy features using include-tags, then deploy core and repeatables using exclude-tags."
+    append_summary "- **Key Outputs**: Command transcripts showing tag-based filtering in action."
     append_summary ""
     append_summary "## Execution Plan"
     append_summary "- 🔁 Reset schema to ensure tags control what lands in each step."
-    append_summary "- 🏷️ Deploy core migrations while keeping feature-dependent repeatables disabled."
-    append_summary '- 📬 Roll out `user-mgmt`, `notifications`, and `analytics` tags individually.'
-    append_summary "- 🧾 Reapply repeatable views once all dependencies exist."
+    append_summary "- 🏷️ Deploy core migrations first (no tags, needed by features)."
+    append_summary '- 📬 Deploy features using `--tags` to include specific functionalities.'
+    append_summary "- 🧾 Deploy repeatables using `--exclude-tags security` (all feature dependencies now exist)."
     append_summary '- 🔐 Inspect the `security` tag status to show remaining gated features.'
     append_summary ""
 
     wait_for_db
     reset_database "Reset schema for tag deployment demo"
 
-    TAG_CONFIG_NO_REPEATABLE="${LOG_ROOT}/dblift-tags-no-repeatable.yaml"
-    cat > "${TAG_CONFIG_NO_REPEATABLE}" <<EOF
+    TAG_CONFIG="${LOG_ROOT}/dblift-tags.yaml"
+    cat > "${TAG_CONFIG}" <<EOF
 database:
   url: "${DB_URL_DEFAULT}"
   schema: "${DB_SCHEMA}"
@@ -723,37 +723,41 @@ migrations:
   directories:
     - "./migrations/features"
     - "./migrations/performance"
+    - "./migrations/repeatable"
   undo_directories:
     - "./migrations/features"
     - "./migrations/performance"
   recursive: false
+  script_encoding: "utf-8"
 EOF
 
-    append_summary "ℹ️ Using temporary config \`${TAG_CONFIG_NO_REPEATABLE##${WORKSPACE}/}\` to skip repeatable scripts until all feature tables exist."
+    append_summary "ℹ️ Using config \`${TAG_CONFIG##${WORKSPACE}/}\` with tag-based filtering."
     append_summary ""
 
-    append_summary "### Step 1 · Core schema without feature tags"
+    append_summary "### Step 1 · Deploy core migrations (no feature tags)"
     append_summary ""
     append_summary "Command"
     append_summary '```bash'
-    append_summary "dblift migrate --config ${TAG_CONFIG_NO_REPEATABLE} --exclude-tags user-mgmt,notifications,analytics,security"
+    append_summary "dblift migrate --config ${TAG_CONFIG} --exclude-tags user-mgmt,notifications,analytics,security"
     append_summary '```'
     append_summary ""
-    run_dblift "Apply core schema (exclude feature tags)" migrate \
-      --config "${TAG_CONFIG_NO_REPEATABLE}" \
+    append_summary "_Note: Core migrations are deployed first since features depend on core tables like `users`._"
+    append_summary ""
+    run_dblift "Deploy core migrations (exclude feature tags)" migrate \
+      --config "${TAG_CONFIG}" \
       --exclude-tags user-mgmt,notifications,analytics,security
-    CORE_ONLY_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "🚀 Core deployment (tags excluded)" "${CORE_ONLY_LOG}" 80
+    CORE_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🚀 Core deployment" "${CORE_LOG}" 60
 
     append_summary "### Step 2 · Deploy user management features"
     append_summary ""
     append_summary "Command"
     append_summary '```bash'
-    append_summary "dblift migrate --config ${TAG_CONFIG_NO_REPEATABLE} --tags user-mgmt"
+    append_summary "dblift migrate --config ${TAG_CONFIG} --tags user-mgmt"
     append_summary '```'
     append_summary ""
     run_dblift "Deploy user management features (tags=user-mgmt)" migrate \
-      --config "${TAG_CONFIG_NO_REPEATABLE}" \
+      --config "${TAG_CONFIG}" \
       --tags user-mgmt
     USER_MGMT_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🏷️ user-mgmt rollout" "${USER_MGMT_LOG}" 40
@@ -762,11 +766,11 @@ EOF
     append_summary ""
     append_summary "Command"
     append_summary '```bash'
-    append_summary "dblift migrate --config ${TAG_CONFIG_NO_REPEATABLE} --tags notifications"
+    append_summary "dblift migrate --config ${TAG_CONFIG} --tags notifications"
     append_summary '```'
     append_summary ""
     run_dblift "Deploy notifications (tags=notifications)" migrate \
-      --config "${TAG_CONFIG_NO_REPEATABLE}" \
+      --config "${TAG_CONFIG}" \
       --tags notifications
     NOTIFICATIONS_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🏷️ notifications rollout" "${NOTIFICATIONS_LOG}" 40
@@ -775,27 +779,29 @@ EOF
     append_summary ""
     append_summary "Command"
     append_summary '```bash'
-    append_summary "dblift migrate --config ${TAG_CONFIG_NO_REPEATABLE} --tags analytics"
+    append_summary "dblift migrate --config ${TAG_CONFIG} --tags analytics"
     append_summary '```'
     append_summary ""
     run_dblift "Deploy analytics (tags=analytics)" migrate \
-      --config "${TAG_CONFIG_NO_REPEATABLE}" \
+      --config "${TAG_CONFIG}" \
       --tags analytics
     ANALYTICS_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "📈 analytics rollout" "${ANALYTICS_LOG}" 40
 
-    append_summary "### Step 5 · Reapply repeatable views with full configuration"
+    append_summary "### Step 5 · Deploy repeatables (exclude security)"
     append_summary ""
     append_summary "Command"
     append_summary '```bash'
-    append_summary "dblift migrate --config ${CONFIG_PATH} --exclude-tags security"
+    append_summary "dblift migrate --config ${TAG_CONFIG} --exclude-tags security"
     append_summary '```'
     append_summary ""
-    run_dblift "Reapply repeatables after enabling features" migrate \
-      --config "${CONFIG_PATH}" \
+    append_summary "_Note: This deploys core migrations and repeatables. Repeatables now have all their dependencies since features were deployed first._"
+    append_summary ""
+    run_dblift "Deploy core and repeatables (exclude-tags=security)" migrate \
+      --config "${TAG_CONFIG}" \
       --exclude-tags security
-    REPEATABLE_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "🧾 Repeatable objects refreshed" "${REPEATABLE_LOG}" 60
+    CORE_REPEATABLE_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🚀 Core and repeatables deployment" "${CORE_REPEATABLE_LOG}" 80
 
     append_summary "### Step 6 · Inspect security tag status"
     append_summary ""
@@ -810,9 +816,9 @@ EOF
     SECURITY_STATUS_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🔐 security tag status" "${SECURITY_STATUS_LOG}" 60
 
-    append_summary '- ✅ Core-only run excluded all feature tags as expected while repeatables were disabled.'
-    append_summary '- ✅ Feature tags (`user-mgmt`, `notifications`, `analytics`) deployed incrementally with clear outputs.'
-    append_summary '- ✅ Repeatable views refreshed once prerequisites were in place.'
+    append_summary '- ✅ Core migrations deployed first using `--exclude-tags` (needed by features).'
+    append_summary '- ✅ Feature tags (`user-mgmt`, `notifications`, `analytics`) deployed using `--tags` to include specific functionalities.'
+    append_summary '- ✅ Repeatables deployed using `--exclude-tags security`, ensuring all feature dependencies exist before repeatables run.'
     append_summary '- ✅ Tag-specific `info` output captured for the security subset, showing gated migrations remain pending.'
     ;;
 
