@@ -738,14 +738,14 @@ EOF
     append_summary ""
     append_summary "Command"
     append_summary '```bash'
-    append_summary "dblift migrate --config ${TAG_CONFIG} --exclude-tags user-mgmt,notifications,analytics,security"
+    append_summary "dblift migrate --config ${TAG_CONFIG} --tags core"
     append_summary '```'
     append_summary ""
     append_summary "_Note: Core migrations are deployed first since features depend on core tables like `users`._"
     append_summary ""
     run_dblift "Deploy core migrations (exclude feature tags)" migrate \
       --config "${TAG_CONFIG}" \
-      --exclude-tags user-mgmt,notifications,analytics,security
+      --tags core
     CORE_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🚀 Core deployment" "${CORE_LOG}" 60
 
