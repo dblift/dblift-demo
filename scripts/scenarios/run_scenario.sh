@@ -996,13 +996,33 @@ EOF
     MULTI_CONFIG_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🧾 Multi-module DBLift config" "${MULTI_CONFIG_LOG}" 120
 
+    # Create a simpler config for core-only deployment
+    CORE_CONFIG_HOST="${LOG_ROOT}/dblift-core-only.yaml"
+    CORE_CONFIG_CONTAINER="./logs/scenario-${SCENARIO_ID}/dblift-core-only.yaml"
+    cat > "${CORE_CONFIG_HOST}" <<EOF
+database:
+  url: "${DB_URL_DEFAULT}"
+  schema: "${DB_SCHEMA}"
+  username: "${DB_USER}"
+  password: "${DB_PASSWORD}"
+
+migrations:
+  directory: "./migrations/core"
+  recursive: false
+  script_encoding: "utf-8"
+EOF
+
     append_summary "### Step 1 · Deploy core migrations first"
     append_summary ""
-    append_summary "_Note: Core migrations must be deployed first since features and modules depend on core tables._"
+    append_summary "Command"
+    append_summary '```bash'
+    append_summary "dblift migrate --config ${CORE_CONFIG_CONTAINER}"
+    append_summary '```'
+    append_summary ""
+    append_summary "_Note: Core migrations must be deployed first since features and modules depend on core tables. Using core-only config ensures only core migrations are deployed._"
     append_summary ""
     run_dblift "Deploy core migrations" migrate \
-      --config "${MULTI_CONFIG_CONTAINER}" \
-      --tags core
+      --config "${CORE_CONFIG_CONTAINER}"
     CORE_DEPLOY_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🚀 Core deployment" "${CORE_DEPLOY_LOG}" 60
 
