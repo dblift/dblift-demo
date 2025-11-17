@@ -908,232 +908,73 @@ SQL
 
   "09")
     append_summary "## Overview"
-    append_summary "- **Goal**: Demonstrate multi-module orchestration with directory overrides."
-    append_summary "- **Focus**: Blend core migrations with module-specific directories and run targeted operations."
-    append_summary "- **Key Outputs**: Multi-module config, deploy logs, and module validation results."
+    append_summary "- **Goal**: Demonstrate DBLift's schema export capabilities: SQL file export and schema model export."
+    append_summary "- **Focus**: Export the database schema in two formats - SQL for baselining and JSON model for comparison."
+    append_summary "- **Key Outputs**: SQL export file and JSON schema model saved as run artifacts."
     append_summary ""
     append_summary "## Execution Plan"
-    append_summary "- 🔁 Reset schema to guarantee predictable results."
-    append_summary "- 🧱 Generate module-specific migration directories on the fly."
-    append_summary "- 🏷️ Deploy core migrations first (using `--tags core`) to establish base schema."
-    append_summary "- 🚀 Deploy all modules and features, then run tag-scoped and directory-scoped operations."
+    append_summary "- 🔁 Reset the database to start from a known baseline."
+    append_summary "- ▶️ Apply migrations to bring the schema to the latest managed version."
+    append_summary '- 💾 Export schema as SQL file (can be used as baseline).'
+    append_summary '- 📊 Export schema as JSON model (can be used for later comparison with live database).'
     append_summary ""
 
     wait_for_db
-    reset_database "Reset schema for multi-module demo"
+    reset_database "Reset schema for export demo"
 
-    MODULE_ROOT_HOST="${LOG_ROOT}/modules"
-    MODULE_ROOT_CONTAINER="./logs/scenario-${SCENARIO_ID}/modules"
-    mkdir -p "${MODULE_ROOT_HOST}/inventory/migrations" "${MODULE_ROOT_HOST}/crm/migrations" "${MODULE_ROOT_HOST}/analytics/migrations"
+    EXPORT_DIR_HOST="${LOG_ROOT}/exports"
+    EXPORT_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/exports"
+    mkdir -p "${EXPORT_DIR_HOST}"
 
-    cat > "${MODULE_ROOT_HOST}/inventory/migrations/V3_0_0__Create_inventory_schema[inventory].sql" <<'SQL'
-CREATE TABLE IF NOT EXISTS inventory_items (
-    id SERIAL PRIMARY KEY,
-    product_id INTEGER NOT NULL REFERENCES products(id),
-    warehouse_location VARCHAR(100),
-    quantity INTEGER NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    created_by VARCHAR(50) DEFAULT 'system' NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_inventory_product ON inventory_items(product_id);
-SQL
+    run_dblift "Apply migrations" migrate --config "${CONFIG_PATH}"
+    MIGRATE_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🚀 Migrate schema" "${MIGRATE_LOG}" 60
 
-    cat > "${MODULE_ROOT_HOST}/crm/migrations/V3_1_0__Create_crm_schema[crm].sql" <<'SQL'
-CREATE TABLE IF NOT EXISTS crm_contacts (
-    id SERIAL PRIMARY KEY,
-    customer_id INTEGER REFERENCES customers(id),
-    contact_type VARCHAR(50),
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    created_by VARCHAR(50) DEFAULT 'system' NOT NULL
-);
-SQL
-
-    cat > "${MODULE_ROOT_HOST}/analytics/migrations/V3_2_0__Create_analytics_views[analytics].sql" <<'SQL'
-DROP VIEW IF EXISTS analytics_orders_summary;
-CREATE OR REPLACE VIEW analytics_orders_summary AS
-SELECT c.contact_name AS customer_name,
-       COUNT(o.id) AS total_orders,
-       SUM(o.total_amount) AS total_amount
-FROM customers c
-LEFT JOIN orders o ON c.id = o.customer_id
-GROUP BY c.contact_name;
-SQL
-
-    MULTI_CONFIG_HOST="${LOG_ROOT}/dblift-multi-module.yaml"
-    MULTI_CONFIG_CONTAINER="./logs/scenario-${SCENARIO_ID}/dblift-multi-module.yaml"
-    cat > "${MULTI_CONFIG_HOST}" <<EOF
-database:
-  url: "${DB_URL_DEFAULT}"
-  schema: "${DB_SCHEMA}"
-  username: "${DB_USER}"
-  password: "${DB_PASSWORD}"
-
-migrations:
-  directory: "./migrations/core"
-  directories:
-    - "./migrations/features"
-    - "./migrations/performance"
-    - "./migrations/security"
-    - "${MODULE_ROOT_CONTAINER}/inventory/migrations"
-    - "${MODULE_ROOT_CONTAINER}/crm/migrations"
-    - "${MODULE_ROOT_CONTAINER}/analytics/migrations"
-  recursive: true
-
-logging:
-  level: INFO
-  log_format: "text"
-  log_dir: "${MODULE_ROOT_CONTAINER}/logs"
-EOF
-
-    run_command "Show module directory layout" bash -c "cd '${MODULE_ROOT_HOST}' && find . -maxdepth 2 -type f | sort"
-    MODULE_LAYOUT_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "📂 Module directory layout" "${MODULE_LAYOUT_LOG}" 80
-
-    run_command "Show multi-module config" cat "${MULTI_CONFIG_HOST}"
-    MULTI_CONFIG_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "🧾 Multi-module DBLift config" "${MULTI_CONFIG_LOG}" 120
-
-    # Create a simpler config for core-only deployment
-    CORE_CONFIG_HOST="${LOG_ROOT}/dblift-core-only.yaml"
-    CORE_CONFIG_CONTAINER="./logs/scenario-${SCENARIO_ID}/dblift-core-only.yaml"
-    cat > "${CORE_CONFIG_HOST}" <<EOF
-database:
-  url: "${DB_URL_DEFAULT}"
-  schema: "${DB_SCHEMA}"
-  username: "${DB_USER}"
-  password: "${DB_PASSWORD}"
-
-migrations:
-  directory: "./migrations/core"
-  recursive: false
-  script_encoding: "utf-8"
-EOF
-
-    append_summary "### Step 1 · Deploy core migrations first"
+    append_summary "### Step 1 · Export schema as SQL file"
     append_summary ""
     append_summary "Command"
     append_summary '```bash'
-    append_summary "dblift migrate --config ${CORE_CONFIG_CONTAINER}"
+    append_summary "dblift export-schema --config ${CONFIG_PATH} --output schema.sql --output-format sql"
     append_summary '```'
     append_summary ""
-    append_summary "_Note: Core migrations must be deployed first since features and modules depend on core tables. Using core-only config ensures only core migrations are deployed._"
+    append_summary "_Note: SQL export can be used as a baseline for brownfield migrations or for creating migration scripts._"
     append_summary ""
-    run_dblift "Deploy core migrations" migrate \
-      --config "${CORE_CONFIG_CONTAINER}"
-    CORE_DEPLOY_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "🚀 Core deployment" "${CORE_DEPLOY_LOG}" 60
+    run_dblift "Export schema as SQL" export-schema \
+      --config "${CONFIG_PATH}" \
+      --output "${EXPORT_DIR_CONTAINER}/schema.sql"
+      --output-format sql
+    SQL_EXPORT_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "📄 SQL export" "${SQL_EXPORT_LOG}" 60
+    run_command "Preview SQL export (first 50 lines)" head -n 50 "${EXPORT_DIR_HOST}/schema.sql"
+    SQL_PREVIEW_LOG="${LAST_LOG_PATH}"
+    if [[ -f "${SQL_PREVIEW_LOG}" ]]; then
+      show_log_excerpt "📝 SQL export preview" "${SQL_PREVIEW_LOG}" 80
+    fi
 
-    append_summary "### Step 2 · Deploy all modules and features"
+    append_summary "### Step 2 · Export schema as JSON model"
     append_summary ""
-    run_dblift "Deploy all modules and features" migrate --config "${MULTI_CONFIG_CONTAINER}"
-    DEPLOY_ALL_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "🚀 Full multi-module deploy" "${DEPLOY_ALL_LOG}" 120
-
-    CRM_CONFIG_HOST="${LOG_ROOT}/dblift-crm-module.yaml"
-    CRM_CONFIG_CONTAINER="./logs/scenario-${SCENARIO_ID}/dblift-crm-module.yaml"
-    cat > "${CRM_CONFIG_HOST}" <<EOF
-database:
-  url: "${DB_URL_DEFAULT}"
-  schema: "${DB_SCHEMA}"
-  username: "${DB_USER}"
-  password: "${DB_PASSWORD}"
-
-migrations:
-  directory: "./migrations/core"
-  directories:
-    - "./migrations/features"
-    - "./migrations/performance"
-    - "${MODULE_ROOT_CONTAINER}/crm/migrations"
-  recursive: true
-EOF
-
-    run_dblift "Inventory module-only deploy" migrate \
-      --config "${MULTI_CONFIG_CONTAINER}" \
-      --tags inventory
-    INVENTORY_ONLY_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "🏷️ inventory-only deploy" "${INVENTORY_ONLY_LOG}" 60
-    append_summary "- ℹ️ Inventory-only run after full deploy reports \"No pending migrations\" (expected)."
-
-    run_dblift "Validate inventory module migrations" validate-sql \
-      "${MODULE_ROOT_CONTAINER}/inventory/migrations/" \
-      --dialect postgresql \
-      --rules-file config/.dblift_rules.yaml
-    INVENTORY_VALIDATION_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "✅ Inventory module validation" "${INVENTORY_VALIDATION_LOG}" 60
-
-    append_summary "- ✅ Multi-directory configuration generated on the fly."
-    append_summary "- ✅ Module-specific deployments executed with tags."
-    append_summary "- ✅ CRM status inspected via targeted schema-history query."
-    append_summary "- ✅ Module migrations validated independently."
-    ;;
-
-  "10")
-    append_summary "## Overview"
-    append_summary "- **Goal**: Showcase targeted schema exports for managed vs. unmanaged objects."
-    append_summary "- **Focus**: Mix manual (legacy) tables with migration-managed ones, then export each subset."
-    append_summary "- **Key Outputs**: Managed-only and unmanaged-only SQL dumps saved as run artifacts from a clean demo schema."
+    append_summary "Command"
+    append_summary '```bash'
+    append_summary "dblift export-schema --config ${CONFIG_PATH} --format json --output schema.json"
+    append_summary '```'
     append_summary ""
-    append_summary "## Execution Plan"
-    append_summary "- 🔁 Reset the dedicated export schema to start from a known baseline."
-    append_summary "- ✍️ Create a legacy table manually to mimic unmanaged drift."
-    append_summary "- ▶️ Apply migrations to bring the schema to the latest managed version."
-    append_summary '- 💾 Export managed objects with `--managed-only`.'
-    append_summary '- 🗂️ Export the unmanaged table with `--unmanaged-only` for baselining.'
+    append_summary "_Note: JSON schema model can be used for programmatic comparison with live databases to detect changes._"
     append_summary ""
+    run_dblift "Export schema as JSON model" export-schema \
+      --config "${CONFIG_PATH}" \
+      --output-format model \
+      --output "${EXPORT_DIR_CONTAINER}/schema.json"
+    JSON_EXPORT_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "📊 JSON model export" "${JSON_EXPORT_LOG}" 60
+    run_command "Preview JSON model (first 80 lines)" head -n 80 "${EXPORT_DIR_HOST}/schema.json"
+    JSON_PREVIEW_LOG="${LAST_LOG_PATH}"
+    if [[ -f "${JSON_PREVIEW_LOG}" ]]; then
+      show_log_excerpt "📝 JSON model preview" "${JSON_PREVIEW_LOG}" 100
+    fi
 
-    wait_for_db
- 
-     EXPORT_DIR_HOST="${LOG_ROOT}/exports"
-     EXPORT_DIR_CONTAINER="./logs/scenario-${SCENARIO_ID}/exports"
-     mkdir -p "${EXPORT_DIR_HOST}"
-     reset_database "Reset schema for export demo"
- 
-    FLATTENED_MIGRATIONS_HOST="${LOG_ROOT}/flattened-migrations"
-    FLATTENED_MIGRATIONS_CONTAINER="./logs/scenario-${SCENARIO_ID}/flattened-migrations"
-    rm -rf "${FLATTENED_MIGRATIONS_HOST}"
-    mkdir -p "${FLATTENED_MIGRATIONS_HOST}"
-    find "${WORKSPACE}/migrations" -type f -name 'V*.sql' -exec cp {} "${FLATTENED_MIGRATIONS_HOST}" \;
-    append_summary "- 🗂️ Flattened versioned migrations into \`${FLATTENED_MIGRATIONS_CONTAINER#./}\` for managed object detection."
- 
-     psql_exec "Create unmanaged audit table" \
-       "CREATE TABLE IF NOT EXISTS ${DB_SCHEMA}.legacy_audit_log (
-          id SERIAL PRIMARY KEY,
-          event_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          payload JSONB NOT NULL
-        );
-        COMMENT ON TABLE ${DB_SCHEMA}.legacy_audit_log IS 'Manually created to simulate brownfield drift';"
- 
-     run_dblift "Apply migrations (managed objects)" migrate \
-       --config "${CONFIG_PATH}"
- 
-     MIGRATE_LOG="${LAST_LOG_PATH}"
-     show_log_excerpt "🚀 Migrate managed schema" "${MIGRATE_LOG}" 80
- 
-     mkdir -p "${EXPORT_DIR_CONTAINER}"
-     run_dblift "Export managed schema (ignore unmanaged)" export-schema \
-       --config "${CONFIG_PATH}" \
-       --scripts "${FLATTENED_MIGRATIONS_CONTAINER}" \
-       --managed-only \
-       --output "${EXPORT_DIR_CONTAINER}/managed.sql"
-     MANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
-     show_log_excerpt "📄 Export managed schema" "${MANAGED_EXPORT_LOG}" 80
-     run_command "Preview managed export (first 40 lines)" head -n 40 "${EXPORT_DIR_HOST}/managed.sql"
- 
-     run_dblift "Export unmanaged schema only" export-schema \
-       --config "${CONFIG_PATH}" \
-       --scripts "${FLATTENED_MIGRATIONS_CONTAINER}" \
-       --unmanaged-only \
-       --output "${EXPORT_DIR_CONTAINER}/unmanaged.sql"
-     UNMANAGED_EXPORT_LOG="${LAST_LOG_PATH}"
-     show_log_excerpt "📄 Export unmanaged schema" "${UNMANAGED_EXPORT_LOG}" 80
-     run_command "Preview unmanaged export (first 40 lines)" head -n 40 "${EXPORT_DIR_HOST}/unmanaged.sql"
- 
-     append_summary "- ✅ Managed export excludes the manually created legacy table."
-     append_summary "- ✅ Unmanaged export captures the legacy table for baselining."
-     append_summary '- 📦 SQL files (`managed.sql`, `unmanaged.sql`) saved under scenario artifacts.'
+    append_summary "- ✅ SQL export file generated - can be used as baseline for brownfield migrations."
+    append_summary "- ✅ JSON schema model generated - can be used for programmatic comparison with live databases."
+    append_summary '- 📦 Export files (`schema.sql`, `schema.json`) saved under scenario artifacts.'
      ;;
 
   *)

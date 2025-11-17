@@ -353,5 +353,5 @@ Ongoing migration management
 - [ ] Update team documentation
 
 ## Next Steps
-- Try [Scenario 09: Multi-Module Project](../09-multi-module-project/)
+- Try [Scenario 09: Targeted Schema Exports](../10-export-schema/) to see how exports complement baselines.
 

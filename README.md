@@ -111,7 +111,7 @@ See [INSTALL.md](INSTALL.md) for detailed instructions.
 - ✅ **Validation Rules** - Custom SQL validation with business rules
 - 🔄 **CI/CD Examples** - GitHub Actions workflows
 - 🗄️ **Multi-Database Support** - PostgreSQL, SQL Server, MySQL
-- 📚 **10 Demo Scenarios** - Step-by-step walkthroughs
+- 📚 **9 Demo Scenarios** - Step-by-step walkthroughs
 - ⚙️ **Configuration Examples** - Production-ready configs
 
 ## Demo Scenarios
@@ -126,8 +126,7 @@ See [INSTALL.md](INSTALL.md) for detailed instructions.
 | 06 | [CI/CD Integration](scenarios/06-ci-cd-integration/) | Automation | 20 min |
 | 07 | [Tag-Based Deployment](scenarios/07-tag-based-deployment/) | Selective rollout | 15 min |
 | 08 | [Brownfield Migration](scenarios/08-brownfield-migration/) | Existing databases | 20 min |
-| 09 | [Multi-Module Project](scenarios/09-multi-module-project/) | Large projects | 15 min |
-| 10 | [Targeted Schema Exports](scenarios/10-export-schema/) | Managed vs. unmanaged exports | 10 min |
+| 09 | [Schema Export](scenarios/10-export-schema/) | SQL export and JSON schema model | 10 min |
 
 ## Repository Structure
 

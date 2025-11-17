@@ -1,86 +1,156 @@
-# Scenario 10: Targeted Schema Exports
+# Scenario 09: Schema Export
 
 ## Objective
-Show how DBLift can export managed objects separately from unmanaged ones. This enables brownfield teams to capture a baseline of legacy structures while still generating migration-managed snapshots.
+Demonstrate DBLift's schema export capabilities with two main features:
+1. **SQL Export** - Export the database schema as a SQL file for baselining
+2. **Schema Model Export** - Export the database schema as a JSON model for programmatic comparison
 
 ## Prerequisites
 - DBLift installed (CLI or Docker)
 - Database running with access to the demo schema
-- Migrations directory mounted locally (`./migrations`)
+- Migrations applied to the database
+
+## Overview
+
+DBLift's `export-schema` command provides two export formats:
+
+- **SQL Export**: Generates a SQL file containing all schema objects (tables, views, functions, etc.). This can be used as a baseline for brownfield migrations or for creating migration scripts.
+- **JSON Schema Model**: Generates a structured JSON representation of the database schema. This can be used for programmatic comparison with live databases to detect schema changes.
 
 ## Steps
 
-### 1. Start from a Clean Slate
+### 1. Prepare the Database
 
 ```bash
-dblift clean \
-  --config config/dblift-postgresql.yaml \
-  --drop-schema
-
 dblift migrate --config config/dblift-postgresql.yaml
 ```
 
-> Tip: `scripts/scenarios/run_scenario.sh 10` performs these steps automatically in CI.
+> Tip: `scripts/scenarios/run_scenario.sh 09` performs these steps automatically in CI.
 
-### 2. Introduce an Unmanaged Table Manually
-
-```bash
-psql -h localhost -U dblift_user -d dblift_demo <<'SQL'
-CREATE TABLE legacy_audit_log (
-    id SERIAL PRIMARY KEY,
-    event_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    payload JSONB NOT NULL
-);
-COMMENT ON TABLE legacy_audit_log IS 'Manually created to simulate brownfield drift';
-SQL
-```
-
-This table is **not** managed by a migration script, so DBLift tracks it as "unmanaged."
-
-### 3. Export Managed Objects Only
+### 2. Export Schema as SQL File
 
 ```bash
-dblift export \
+dblift export-schema \
   --config config/dblift-postgresql.yaml \
-  --ignore-unmanaged \
-  --output logs/schema/managed.sql
+  --output schema.sql
 ```
 
 **What you get:**
-- Only objects created via migrations (`customers`, `orders`, views, functions, etc.)
-- No trace of `legacy_audit_log`
-- Perfect for generating migration-owned snapshots
-
-### 4. Export Unmanaged Objects Only
-
-```bash
-dblift export \
-  --config config/dblift-postgresql.yaml \
-  --only-unmanaged \
-  --output logs/schema/unmanaged.sql
-```
+- Complete SQL DDL for all schema objects
+- Tables with their structure, constraints, and indexes
+- Views, functions, triggers, and other database objects
+- Ready to use as a baseline for brownfield migrations
 
 **Use cases:**
-- Capture baseline DDL for brownfield objects
-- Feed into a `baseline` migration
-- Document what still needs to be brought under DBLift management
+- Create a baseline snapshot of an existing database
+- Generate migration scripts from the exported SQL
+- Document the current schema state
+- Use as a reference for schema comparison
 
-### 5. Inspect the Outputs
-
-```bash
-head -n 40 logs/schema/managed.sql
-head -n 40 logs/schema/unmanaged.sql
+**Example output preview:**
+```sql
+-- Exported schema from dblift_demo
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    ...
+);
+CREATE TABLE customers (
+    id SERIAL PRIMARY KEY,
+    contact_name VARCHAR(100) NOT NULL,
+    ...
+);
+-- ... more objects
 ```
 
-Verify that only the intended objects appear in each file.
+### 3. Export Schema as JSON Model
+
+```bash
+dblift export-schema \
+  --config config/dblift-postgresql.yaml \
+  --format json \
+  --output schema.json
+```
+
+**What you get:**
+- Structured JSON representation of the entire schema
+- Tables, columns, data types, constraints in JSON format
+- Views, functions, and other objects as structured data
+- Perfect for programmatic analysis and comparison
+
+**Use cases:**
+- Compare schema models between different database instances
+- Detect schema changes programmatically
+- Integrate with CI/CD pipelines for schema validation
+- Generate reports or documentation from schema metadata
+
+**Example output preview:**
+```json
+{
+  "schema": "dblift_demo",
+  "tables": [
+    {
+      "name": "users",
+      "columns": [
+        {
+          "name": "id",
+          "type": "SERIAL",
+          "nullable": false,
+          "primaryKey": true
+        },
+        {
+          "name": "username",
+          "type": "VARCHAR(50)",
+          "nullable": false,
+          "unique": true
+        }
+      ]
+    }
+  ],
+  "views": [...],
+  "functions": [...]
+}
+```
+
+### 4. Inspect the Exports
+
+```bash
+# View SQL export
+head -n 50 schema.sql
+
+# View JSON model
+head -n 80 schema.json | jq .
+```
 
 ## Key Takeaways
-- `--ignore-unmanaged` keeps exports focused on managed migrations.
-- `--only-unmanaged` surfaces legacy objects ripe for baselining.
-- You can generate migration files from the unmanaged dump to bring everything under DBLift control.
+
+### SQL Export
+- **Purpose**: Human-readable SQL DDL for baselining and migration script generation
+- **Format**: Standard SQL CREATE statements
+- **Best for**: Creating baseline migrations, documenting schema, manual review
+
+### JSON Schema Model
+- **Purpose**: Machine-readable schema representation for programmatic comparison
+- **Format**: Structured JSON with schema metadata
+- **Best for**: Automated schema comparison, CI/CD integration, change detection
+
+### When to Use Each
+
+**Use SQL Export when:**
+- You need to create a baseline migration from an existing database
+- You want human-readable schema documentation
+- You're doing brownfield migration onboarding
+- You need to generate migration scripts manually
+
+**Use JSON Model when:**
+- You want to compare schemas programmatically
+- You're building automated schema validation tools
+- You need to integrate schema checks into CI/CD pipelines
+- You want to detect schema drift automatically
 
 ## Next Steps
-- Revisit [Scenario 08: Brownfield Migration](../08-brownfield-migration/) to see how baselines complement targeted exports.
-- Explore `dblift diff --ignore-unmanaged` in [Scenario 05: Drift Detection](../05-drift-detection/) for ongoing monitoring.
+- Revisit [Scenario 08: Brownfield Migration](../08-brownfield-migration/) to see how SQL exports can be used for baselining.
+- Explore [Scenario 05: Drift Detection](../05-drift-detection/) to see how schema comparison works in practice.
 
 

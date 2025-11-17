@@ -14,8 +14,7 @@ Each demo scenario now has a dedicated workflow that runs the scripted walkthrou
 | 06 - CI/CD Integration | `scenario-06-ci-cd-integration.yml` | Surfaces workflow catalog and produces SARIF output |
 | 07 - Tag-Based Deployment | `scenario-07-tag-based-deployment.yml` | Runs selective migration waves using tags |
 | 08 - Brownfield Migration | `scenario-08-brownfield-migration.yml` | Baselines legacy schema then layers new changes |
-| 09 - Multi-Module Project | `scenario-09-multi-module.yml` | Manages module directories and module-scoped validation |
-| 10 - Targeted Schema Exports | `scenario-10-export-schema.yml` | Generates managed vs. unmanaged schema dumps for baselining |
+| 09 - Schema Export | `scenario-10-export-schema.yml` | Exports schema as SQL file and JSON model |
 
 Trigger any scenario from the Actions tab via **Run workflow** to see a narrated execution in the job summary and downloadable logs under `scenario-<id>-logs`.
 
