@@ -32,7 +32,8 @@ dblift migrate --config config/dblift-postgresql.yaml
 ```bash
 dblift export-schema \
   --config config/dblift-postgresql.yaml \
-  --output schema.sql
+  --output schema.sql \
+  --output-format sql
 ```
 
 **What you get:**
@@ -69,7 +70,7 @@ CREATE TABLE customers (
 ```bash
 dblift export-schema \
   --config config/dblift-postgresql.yaml \
-  --format json \
+  --output-format model \
   --output schema.json
 ```
 

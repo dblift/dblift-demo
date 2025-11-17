@@ -941,7 +941,7 @@ SQL
     append_summary ""
     run_dblift "Export schema as SQL" export-schema \
       --config "${CONFIG_PATH}" \
-      --output "${EXPORT_DIR_CONTAINER}/schema.sql"
+      --output "${EXPORT_DIR_CONTAINER}/schema.sql" \
       --output-format sql
     SQL_EXPORT_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "📄 SQL export" "${SQL_EXPORT_LOG}" 60
@@ -955,7 +955,7 @@ SQL
     append_summary ""
     append_summary "Command"
     append_summary '```bash'
-    append_summary "dblift export-schema --config ${CONFIG_PATH} --format json --output schema.json"
+    append_summary "dblift export-schema --config ${CONFIG_PATH} --output-format model --output schema.json"
     append_summary '```'
     append_summary ""
     append_summary "_Note: JSON schema model can be used for programmatic comparison with live databases to detect changes._"
