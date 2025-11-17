@@ -803,23 +803,33 @@ EOF
     CORE_REPEATABLE_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🚀 Core and repeatables deployment" "${CORE_REPEATABLE_LOG}" 80
 
-    append_summary "### Step 6 · Inspect security tag status"
+    append_summary "### Step 6 · Verify security migrations are pending"
     append_summary ""
     append_summary "Command"
     append_summary '```bash'
-    append_summary "dblift info --config ${CONFIG_PATH} --tags security"
+    append_summary "dblift info --config ${TAG_CONFIG}"
     append_summary '```'
     append_summary ""
-    run_dblift "Check security tag status" info \
-      --config "${CONFIG_PATH}" \
-      --tags security
-    SECURITY_STATUS_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "🔐 security tag status" "${SECURITY_STATUS_LOG}" 60
+    append_summary "_Note: The `info` command shows all applied migrations. Security-tagged migrations are not in the list since we excluded them._"
+    append_summary ""
+    run_dblift "Check migration status" info \
+      --config "${TAG_CONFIG}"
+    STATUS_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "📋 Migration status (security excluded)" "${STATUS_LOG}" 60
 
-    append_summary '- ✅ Core migrations deployed first using `--exclude-tags` (needed by features).'
+    append_summary "### Step 7 · List security migrations that remain pending"
+    append_summary ""
+    run_command "List security-tagged migration files" bash -c 'find migrations/security -name "*[security].sql" -type f | sort'
+    SECURITY_FILES_LOG="${LAST_LOG_PATH}"
+    if [[ -f "${SECURITY_FILES_LOG}" ]]; then
+      show_log_excerpt "🔐 Security migrations (not yet deployed)" "${SECURITY_FILES_LOG}" 20
+      append_summary "_Note: These security-tagged migrations exist but were excluded from deployment._"
+    fi
+
+    append_summary '- ✅ Core migrations deployed first using `--tags core` (needed by features).'
     append_summary '- ✅ Feature tags (`user-mgmt`, `notifications`, `analytics`) deployed using `--tags` to include specific functionalities.'
     append_summary '- ✅ Repeatables deployed using `--exclude-tags security`, ensuring all feature dependencies exist before repeatables run.'
-    append_summary '- ✅ Tag-specific `info` output captured for the security subset, showing gated migrations remain pending.'
+    append_summary '- ✅ Security migrations remain pending (excluded from deployment), demonstrating tag-based gating.'
     ;;
 
   "08")
@@ -905,7 +915,8 @@ SQL
     append_summary "## Execution Plan"
     append_summary "- 🔁 Reset schema to guarantee predictable results."
     append_summary "- 🧱 Generate module-specific migration directories on the fly."
-    append_summary "- 🚀 Deploy everything, then run tag-scoped and directory-scoped operations."
+    append_summary "- 🏷️ Deploy core migrations first (using `--tags core`) to establish base schema."
+    append_summary "- 🚀 Deploy all modules and features, then run tag-scoped and directory-scoped operations."
     append_summary ""
 
     wait_for_db
@@ -985,6 +996,22 @@ EOF
     MULTI_CONFIG_LOG="${LAST_LOG_PATH}"
     show_log_excerpt "🧾 Multi-module DBLift config" "${MULTI_CONFIG_LOG}" 120
 
+    append_summary "### Step 1 · Deploy core migrations first"
+    append_summary ""
+    append_summary "_Note: Core migrations must be deployed first since features and modules depend on core tables._"
+    append_summary ""
+    run_dblift "Deploy core migrations" migrate \
+      --config "${MULTI_CONFIG_CONTAINER}" \
+      --tags core
+    CORE_DEPLOY_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🚀 Core deployment" "${CORE_DEPLOY_LOG}" 60
+
+    append_summary "### Step 2 · Deploy all modules and features"
+    append_summary ""
+    run_dblift "Deploy all modules and features" migrate --config "${MULTI_CONFIG_CONTAINER}"
+    DEPLOY_ALL_LOG="${LAST_LOG_PATH}"
+    show_log_excerpt "🚀 Full multi-module deploy" "${DEPLOY_ALL_LOG}" 120
+
     CRM_CONFIG_HOST="${LOG_ROOT}/dblift-crm-module.yaml"
     CRM_CONFIG_CONTAINER="./logs/scenario-${SCENARIO_ID}/dblift-crm-module.yaml"
     cat > "${CRM_CONFIG_HOST}" <<EOF
@@ -1002,10 +1029,6 @@ migrations:
     - "${MODULE_ROOT_CONTAINER}/crm/migrations"
   recursive: true
 EOF
-
-    run_dblift "Deploy all modules" migrate --config "${MULTI_CONFIG_CONTAINER}"
-    DEPLOY_ALL_LOG="${LAST_LOG_PATH}"
-    show_log_excerpt "🚀 Full multi-module deploy" "${DEPLOY_ALL_LOG}" 120
 
     run_dblift "Inventory module-only deploy" migrate \
       --config "${MULTI_CONFIG_CONTAINER}" \
